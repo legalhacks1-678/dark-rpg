@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Dark RPG</title>
+    <style>
+        * { touch-action: manipulation; user-select: none; box-sizing: border-box; }
+        body { margin: 0; overflow: hidden; background: #050505; font-family: sans-serif; color: white; }
+        #canvas3d { width: 100vw; height: 100vh; display: block; }
+        
+        /* Auto-Update Banner */
+        #updateBanner {
+            display: none; position: fixed; top: 0; left: 0; right: 0;
+            background: #ff9800; color: black; font-weight: bold; text-align: center;
+            padding: 12px; z-index: 9999; cursor: pointer;
+        }
+
+        /* Character Select */
+        #charSelectModal {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.92);
+            display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100;
+        }
+        .select-box { background: #222; padding: 25px; border-radius: 12px; border: 2px solid #555; text-align: center; max-width: 350px; width: 90%; }
+        select, button { width: 100%; padding: 12px; margin: 10px 0; font-size: 16px; border-radius: 6px; background: #333; color: white; border: 1px solid #777; }
+        button.action { background: #6200ea; font-weight: bold; cursor: pointer; }
+
+        /* HUD */
+        #hud { position: fixed; top: 15px; left: 15px; background: rgba(0,0,0,0.7); padding: 12px; border-radius: 8px; font-size: 14px; pointer-events: none; z-index: 10; border: 1px solid #444; }
+        #gearPanel { position: fixed; top: 15px; right: 15px; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 8px; font-size: 12px; z-index: 10; border: 1px solid #444; max-width: 170px; }
+        .gear-btn { padding: 6px; margin: 4px 0; font-size: 12px; background: #444; width: 100%; border-radius: 4px; border: 1px solid #666; color: white; }
+        
+        /* Mobile Touch Controls */
+        #dpad { position: fixed; bottom: 20px; left: 20px; display: grid; grid-template-columns: 55px 55px 55px; grid-template-rows: 55px 55px; gap: 8px; z-index: 10; }
+        .t-btn { background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.4); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; color: white; }
+        #btnUp { grid-column: 2; grid-row: 1; }
+        #btnLeft { grid-column: 1; grid-row: 2; }
+        #btnDown { grid-column: 2; grid-row: 2; }
+        #btnRight { grid-column: 3; grid-row: 2; }
+        #actionBtn { position: fixed; bottom: 30px; right: 25px; width: 75px; height: 75px; border-radius: 50%; background: #d32f2f; color: white; font-weight: bold; font-size: 14px; border: 3px solid #fff; z-index: 10; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+
+    <!-- Auto Update Notice -->
+    <div id="updateBanner" onclick="window.location.reload()">
+        ⚡ New Update Available! Tap here to update the game.
+    </div>
+
+    <!-- Character Selection -->
+    <div id="charSelectModal">
+        <div class="select-box">
+            <h2>Select Character</h2>
+            <label>Class:</label>
+            <select id="classPick">
+                <option value="Werewolf">🐺 Werewolf</option>
+                <option value="Vampire">🧛 Vampire</option>
+                <option value="Witch">🧙 Witch</option>
+            </select>
+            <label>Subclass:</label>
+            <select id="subclassPick"></select>
+            <button class="action" onclick="startGame()">Launch Game</button>
+        </div>
+    </div>
+
+    <div id="hud" style="display:none;">
+        <div id="hudName" style="font-weight:bold; color:#00e676;"></div>
+        <div id="hudLevel">Level: 1 (XP: 0/100)</div>
+        <div id="hudWeapon">Weapon: None</div>
+        <div id="hudArmor">Armor: None</div>
+    </div>
+
+    <div id="gearPanel" style="display:none;">
+        <strong>Equipment Shop</strong>
+        <div id="gearList"></div>
+    </div>
+
+    <div id="dpad" style="display:none;">
+        <div class="t-btn" id="btnUp">▲</div>
+        <div class="t-btn" id="btnLeft">◀</div>
+        <div class="t-btn" id="btnDown">▼</div>
+        <div class="t-btn" id="btnRight">▶</div>
+    </div>
+    <button id="actionBtn" style="display:none;" onclick="trainXP()">Train XP</button>
+
+    <div id="canvas3d"></div>
+
+    <script>
+        const socket = io();
+        let myId = null, myData = null, allItems = {}, localVersion = null;
+        const playerMeshes = {};
+
+        // In-Game Live Patcher
+        socket.on('versionCheck', (serverVersion) => {
+            if (!localVersion) {
+                localVersion = serverVersion;
+            } else if (localVersion !== serverVersion) {
+                document.getElementById('updateBanner').style.display = 'block';
+            }
+        });
+
+        const subclasses = {
+            Werewolf: ['Alpha (Pack Leader)', 'Shadowstalker (Speed)'],
+            Vampire: ['Blood Mage (Lifesteal)', 'Nightblade (Assassin)'],
+            Witch: ['Necromancer (Dark Magic)', 'Enchantress (Elemental)']
+        };
+        const classSelect = document.getElementById('classPick');
+        const subclassSelect = document.getElementById('subclassPick');
+
+        function updateSubclasses() {
+            subclassSelect.innerHTML = '';
+            subclasses[classSelect.value].forEach(sub => {
+                const opt = document.createElement('option');
+                opt.value = sub.split(' ')[0];
+                opt.innerText = sub;
+                subclassSelect.appendChild(opt);
+            });
+        }
+        classSelect.addEventListener('change', updateSubclasses);
+        updateSubclasses();
+
+        function startGame() {
+            document.getElementById('charSelectModal').style.display = 'none';
+            document.getElementById('hud').style.display = 'block';
+            document.getElementById('gearPanel').style.display = 'block';
+            document.getElementById('dpad').style.display = 'grid';
+            document.getElementById('actionBtn').style.display = 'block';
+
+            socket.emit('joinGame', {
+                characterClass: classSelect.value,
+                subclass: subclassSelect.value
+            });
+        }
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0a12);
+        scene.fog = new THREE.Fog(0x0a0a12, 10, 40);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('canvas3d').appendChild(renderer.domElement);
+
+        scene.add(new THREE.AmbientLight(0x666688));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(10, 20, 10);
+        scene.add(dirLight);
+
+        const grid = new THREE.GridHelper(60, 30, 0x00ffcc, 0x222233);
+        grid.position.y = -0.01;
+        scene.add(grid);
+
+        function createCharacterMesh(p) {
+            const group = new THREE.Group();
+            let bodyColor = p.characterClass === 'Werewolf' ? 0x5a3d28 : (p.characterClass === 'Vampire' ? 0x8b0000 : 0x4a148c);
+            
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.4, 0.8), new THREE.MeshLambertMaterial({ color: bodyColor }));
+            body.position.y = 0.7;
+            group.add(body);
+
+            if (p.characterClass === 'Witch') {
+                const hat = new THREE.Mesh(new THREE.ConeGeometry(0.6, 0.9, 8), new THREE.MeshLambertMaterial({ color: 0x111111 }));
+                hat.position.y = 1.7;
+                group.add(hat);
+            } else if (p.characterClass === 'Werewolf') {
+                const earGeo = new THREE.ConeGeometry(0.15, 0.3, 4);
+                const earMat = new THREE.MeshLambertMaterial({ color: 0x332211 });
+                const earL = new THREE.Mesh(earGeo, earMat); earL.position.set(-0.3, 1.5, 0);
+                const earR = new THREE.Mesh(earGeo, earMat); earR.position.set(0.3, 1.5, 0);
+                group.add(earL, earR);
+            } else if (p.characterClass === 'Vampire') {
+                const cape = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.2, 0.1), new THREE.MeshLambertMaterial({ color: 0x220000 }));
+                cape.position.set(0, 0.6, -0.45);
+                group.add(cape);
+            }
+
+            group.position.set(p.x, 0, p.z);
+            scene.add(group);
+            return group;
+        }
+
+        socket.on('init', (data) => {
+            myId = data.id; myData = data.players[myId]; allItems = data.items;
+            for (let id in data.players) playerMeshes[id] = createCharacterMesh(data.players[id]);
+            updateHUD(); buildGearShop();
+        });
+
+        socket.on('newPlayer', (p) => { playerMeshes[p.id] = createCharacterMesh(p); });
+        socket.on('playerMoved', (p) => {
+            if (playerMeshes[p.id]) {
+                playerMeshes[p.id].position.set(p.x, 0, p.z);
+                playerMeshes[p.id].rotation.y = p.rotation;
+            }
+        });
+        socket.on('playerUpdated', (p) => { if (p.id === myId) { myData = p; updateHUD(); } });
+        socket.on('playerLeft', (id) => { if (playerMeshes[id]) { scene.remove(playerMeshes[id]); delete playerMeshes[id]; } });
+        socket.on('equipFailed', (msg) => alert(msg));
+
+        function updateHUD() {
+            document.getElementById('hudName').innerText = `${myData.characterClass} (${myData.subclass})`;
+            document.getElementById('hudLevel').innerText = `Level: ${myData.level} (XP: ${myData.xp}/${myData.level * 100})`;
+            document.getElementById('hudWeapon').innerText = `Weapon: ${allItems.weapons[myData.weapon].name}`;
+            document.getElementById('hudArmor').innerText = `Armor: ${allItems.armors[myData.armor].name}`;
+        }
+
+        function buildGearShop() {
+            const list = document.getElementById('gearList');
+            list.innerHTML = '';
+            ['weapons', 'armors'].forEach(type => {
+                for (let key in allItems[type]) {
+                    const item = allItems[type][key];
+                    if (item.class === myData.characterClass) {
+                        const b = document.createElement('button');
+                        b.className = 'gear-btn';
+                        b.innerText = `${item.name} (Lv.${item.reqLevel})`;
+                        b.onclick = () => socket.emit('equipItem', { type, itemId: key });
+                        list.appendChild(b);
+                    }
+                }
+            });
+        }
+
+        function trainXP() { socket.emit('gainXP'); }
+
+        let keys = { forward: false, backward: false, left: false, right: false };
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'w' || e.key === 'ArrowUp') keys.forward = true;
+            if (e.key === 's' || e.key === 'ArrowDown') keys.backward = true;
+            if (e.key === 'a' || e.key === 'ArrowLeft') keys.left = true;
+            if (e.key === 'd' || e.key === 'ArrowRight') keys.right = true;
+        });
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'w' || e.key === 'ArrowUp') keys.forward = false;
+            if (e.key === 's' || e.key === 'ArrowDown') keys.backward = false;
+            if (e.key === 'a' || e.key === 'ArrowLeft') keys.left = false;
+            if (e.key === 'd' || e.key === 'ArrowRight') keys.right = false;
+        });
+
+        function bindTouch(id, key) {
+            const el = document.getElementById(id);
+            el.addEventListener('touchstart', (e) => { e.preventDefault(); keys[key] = true; });
+            el.addEventListener('touchend', (e) => { e.preventDefault(); keys[key] = false; });
+        }
+        bindTouch('btnUp', 'forward'); bindTouch('btnDown', 'backward');
+        bindTouch('btnLeft', 'left'); bindTouch('btnRight', 'right');
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (myData && playerMeshes[myId]) {
+                const mesh = playerMeshes[myId];
+                let moved = false;
+                if (keys.left) { mesh.rotation.y += 0.05; moved = true; }
+                if (keys.right) { mesh.rotation.y -= 0.05; moved = true; }
+                if (keys.forward) { mesh.position.x -= Math.sin(mesh.rotation.y) * 0.12; mesh.position.z -= Math.cos(mesh.rotation.y) * 0.12; moved = true; }
+                if (keys.backward) { mesh.position.x += Math.sin(mesh.rotation.y) * 0.08; mesh.position.z += Math.cos(mesh.rotation.y) * 0.08; moved = true; }
+
+                if (moved) socket.emit('move', { x: mesh.position.x, z: mesh.position.z, rotation: mesh.rotation.y });
+
+                camera.position.x = mesh.position.x + Math.sin(mesh.rotation.y) * 5;
+                camera.position.z = mesh.position.z + Math.cos(mesh.rotation.y) * 5;
+                camera.position.y = 3.5;
+                camera.lookAt(mesh.position.x, 1, mesh.position.z);
+            }
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
