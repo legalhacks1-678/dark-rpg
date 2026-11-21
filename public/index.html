@@ -5,440 +5,365 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="manifest" href="/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Open-World Action RPG</title>
+    <title>Elder Scrolls: Skyrim Web RPG</title>
     <style>
         * { touch-action: manipulation; user-select: none; box-sizing: border-box; }
-        body { margin: 0; overflow: hidden; background: #050505; font-family: 'Courier New', monospace; color: white; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Cinzel', serif, sans-serif; color: #e0e0e0; }
         #canvas3d { width: 100vw; height: 100vh; display: block; }
 
-        /* UI Overlays */
-        #updateBanner { display: none; position: fixed; top: 0; left: 0; right: 0; background: #ff9800; color: #000; font-weight: bold; text-align: center; padding: 10px; z-index: 9999; cursor: pointer; }
+        /* Crosshair for PC Pointer Lock */
+        #crosshair { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 8px; height: 8px; border: 2px solid rgba(255,255,255,0.7); border-radius: 50%; pointer-events: none; z-index: 5; }
+
+        /* HUD */
+        #hud { position: fixed; top: 15px; left: 15px; background: rgba(10,10,12,0.85); padding: 14px; border-radius: 4px; border: 1px solid #7c6d53; z-index: 10; font-size: 13px; min-width: 190px; }
+        .bar { width: 100%; height: 8px; background: #222; margin: 3px 0 6px 0; border: 1px solid #555; }
+        #hpFill { width: 100%; height: 100%; background: #991b1b; }
         
-        #hud { position: fixed; top: 15px; left: 15px; background: rgba(0,0,0,0.75); padding: 12px; border-radius: 6px; border: 2px solid #444; z-index: 10; font-size: 13px; line-height: 1.5; pointer-events: none; }
-        .bar { width: 140px; height: 10px; background: #333; margin: 4px 0 8px 0; border: 1px solid #777; border-radius: 2px; }
-        #hpFill { width: 100%; height: 100%; background: #e53935; }
-        #staFill { width: 100%; height: 100%; background: #43a047; }
+        #infectionAlert { display: none; margin-top: 6px; padding: 4px; background: #581c87; color: #f3e8ff; border: 1px solid #c084fc; font-size: 11px; text-align: center; }
 
-        #bossHud { position: fixed; top: 15px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 10px 20px; border-radius: 8px; border: 2px solid #b71c1c; text-align: center; z-index: 10; min-width: 280px; }
-        #bossHpBar { width: 100%; height: 12px; background: #333; margin-top: 6px; border: 1px solid #777; }
-        #bossHpFill { width: 100%; height: 100%; background: #d32f2f; transition: width 0.2s; }
+        /* Modals (Inventory, Crafting, Settings) */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 100; align-items: center; justify-content: center; }
+        .window { background: #16161a; border: 2px solid #854d0e; padding: 25px; border-radius: 8px; width: 90%; max-width: 440px; max-height: 85vh; overflow-y: auto; color: #fff; }
+        .window h2 { margin-top: 0; color: #facc15; border-bottom: 1px solid #854d0e; padding-bottom: 6px; }
+        
+        button.game-btn { background: #27272a; border: 1px solid #71717a; color: white; padding: 8px 12px; margin: 5px 0; width: 100%; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        button.game-btn:hover { background: #3f3f46; border-color: #facc15; }
 
-        /* Telegraph Banner */
-        #telegraphBanner { display: none; position: fixed; top: 85px; left: 50%; transform: translateX(-50%); padding: 10px 24px; border-radius: 8px; font-weight: bold; font-size: 16px; z-index: 20; text-transform: uppercase; letter-spacing: 1px; animation: pulse 0.3s infinite alternate; }
-        @keyframes pulse { from { transform: translateX(-50%) scale(1); } to { transform: translateX(-50%) scale(1.08); } }
+        /* Top Nav Icons */
+        #topNav { position: fixed; top: 15px; right: 15px; display: flex; gap: 8px; z-index: 10; }
+        .icon-btn { background: rgba(0,0,0,0.75); border: 1px solid #7c6d53; color: white; width: 42px; height: 42px; border-radius: 4px; font-size: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
 
-        /* Character Creation Modal */
-        #charModal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); display: flex; align-items: center; justify-content: center; z-index: 100; }
-        .box { background: #1a1a1a; padding: 25px; border: 2px solid #666; border-radius: 10px; max-width: 360px; width: 90%; text-align: center; }
-        select, button { width: 100%; padding: 10px; margin: 8px 0; background: #2a2a2a; color: white; border: 1px solid #555; border-radius: 4px; font-size: 15px; }
-        button.play-btn { background: #2e7d32; font-weight: bold; cursor: pointer; margin-top: 15px; }
-
-        /* Controls (Mobile) */
-        #dpad { position: fixed; bottom: 20px; left: 20px; display: grid; grid-template-columns: 55px 55px 55px; grid-template-rows: 55px 55px; gap: 8px; z-index: 10; }
+        /* Mobile Controls */
+        #mobileControls { display: none; position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+        #dpad { position: absolute; bottom: 25px; left: 25px; display: grid; grid-template-columns: 55px 55px 55px; grid-template-rows: 55px 55px; gap: 6px; pointer-events: auto; }
         .t-btn { background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.4); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; color: white; }
         #btnUp { grid-column: 2; grid-row: 1; } #btnLeft { grid-column: 1; grid-row: 2; } #btnDown { grid-column: 2; grid-row: 2; } #btnRight { grid-column: 3; grid-row: 2; }
+        
+        #actionCluster { position: absolute; bottom: 25px; right: 25px; display: flex; flex-direction: column; gap: 10px; pointer-events: auto; }
+        .act-btn { width: 65px; height: 65px; border-radius: 50%; border: 2px solid #ca8a04; background: rgba(0,0,0,0.7); color: white; font-weight: bold; font-size: 13px; display: flex; align-items: center; justify-content: center; }
 
-        #actionCluster { position: fixed; bottom: 20px; right: 20px; display: grid; grid-template-columns: 60px 60px; grid-template-rows: 60px 60px; gap: 10px; z-index: 10; }
-        .act-btn { border-radius: 50%; border: 2px solid #fff; font-weight: bold; font-size: 12px; display: flex; align-items: center; justify-content: center; color: white; }
-        #btnAttack { background: #c62828; }
-        #btnParry { background: #1565c0; }
-        #btnDodge { background: #f57f17; }
-        #btnTech { background: #6a1b9a; }
-        #btnCam { position: fixed; top: 15px; right: 15px; width: 45px; height: 45px; border-radius: 8px; background: rgba(0,0,0,0.6); border: 1px solid #777; color: white; z-index: 10; font-size: 18px; }
+        #promptText { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 8px 16px; border: 1px solid #eab308; display: none; z-index: 10; font-size: 14px; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
 
-    <div id="updateBanner" onclick="window.location.reload()">⚡ New Game Patch Live! Tap to Update.</div>
+    <div id="crosshair"></div>
+    <div id="promptText">Press [F] or Tap to Interact</div>
 
-    <!-- Character Selector -->
-    <div id="charModal">
-        <div class="box">
-            <h2 style="margin-top:0;">Hero Customization</h2>
-            <label>Combat Class:</label>
-            <select id="classSel">
-                <option value="Warrior">Warrior (Heavy / Balanced)</option>
-                <option value="Assassin">Assassin (Fast / Bleed)</option>
-                <option value="Mage">Mage (Elemental / Healer)</option>
-                <option value="Guard">Guard (Tank / Counter)</option>
-            </select>
-            <label>Innate Trait:</label>
-            <select id="traitSel">
-                <option value="Human">Human (Standard)</option>
-                <option value="Vampire">Vampire (Sunburn / Blood Damage)</option>
-                <option value="Werewolf">Werewolf (Beast Form / Claws)</option>
-            </select>
-            <button class="play-btn" onclick="enterWorld()">Enter World</button>
+    <!-- HUD -->
+    <div id="hud">
+        <div id="hudName" style="font-weight:bold; color:#facc15;">Dragonborn</div>
+        <div id="hudTrait" style="color:#a8a29e;">Form: Human</div>
+        <div>HP</div><div class="bar"><div id="hpFill"></div></div>
+        <div id="hudTime">Skyrim Time: Day ☀️</div>
+        <div id="infectionAlert">⚠️ Blood Sickness: Surviving (45s)...</div>
+    </div>
+
+    <!-- Top Navigation Icons -->
+    <div id="topNav">
+        <div class="icon-btn" onclick="toggleModal('invModal')">🎒</div>
+        <div class="icon-btn" onclick="toggleModal('craftModal')">⚒️</div>
+        <div class="icon-btn" onclick="toggleModal('settingsModal')">⚙️</div>
+    </div>
+
+    <!-- Inventory Modal -->
+    <div id="invModal" class="modal">
+        <div class="window">
+            <h2>Inventory</h2>
+            <div id="invList" style="line-height: 1.8;"></div>
+            <button class="game-btn" onclick="toggleModal('invModal')">Close</button>
         </div>
     </div>
 
-    <!-- HUD Elements -->
-    <div id="hud" style="display:none;">
-        <div id="hudName" style="color:#69f0ae; font-weight:bold;"></div>
-        <div id="hudTrait" style="color:#ffd54f;"></div>
-        <div>HP</div><div class="bar"><div id="hpFill"></div></div>
-        <div>STAMINA</div><div class="bar"><div id="staFill"></div></div>
-        <div id="hudWorld">Time: Day ☀️</div>
-        <div style="font-size:10px; color:#aaa; margin-top:5px;">PC: [WASD] Move | [F] Attack<br>[Space] Parry | [Shift] Dodge | [E] Tech</div>
+    <!-- Crafting Modal -->
+    <div id="craftModal" class="modal">
+        <div class="window">
+            <h2>Blacksmith & Alchemy</h2>
+            <button class="game-btn" onclick="craft('iron_sword')">Forge Iron Greatsword (3x Iron)</button>
+            <button class="game-btn" onclick="craft('wolf_armor')">Stitch Wolf Armor (3x Wolf Pelt)</button>
+            <button class="game-btn" onclick="craft('sun_potion')">Brew Sun-Ward Draught (1x Dust, 2x Herbs)</button>
+            <button class="game-btn" style="margin-top:15px;" onclick="toggleModal('craftModal')">Close</button>
+        </div>
     </div>
 
-    <div id="bossHud">
-        <div style="font-size:12px; color:#ff8a80; font-weight:bold;">ROTWOOD BEHEMOTH (TIER 1 BOSS)</div>
-        <div id="bossHpBar"><div id="bossHpFill"></div></div>
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="window">
+            <h2>Settings</h2>
+            <label>Mouse Look Sensitivity:</label>
+            <input type="range" id="mouseSens" min="1" max="10" value="3" style="width:100%; margin:8px 0 15px 0;">
+            <h3>Key Bindings</h3>
+            <div style="font-size:12px; color:#aaa; margin-bottom:10px;">Click input to rebind:</div>
+            <div id="keybindList"></div>
+            <button class="game-btn" style="margin-top:15px;" onclick="toggleModal('settingsModal')">Save & Close</button>
+        </div>
     </div>
 
-    <div id="telegraphBanner"></div>
-
-    <!-- Touch Controls -->
-    <div id="dpad" style="display:none;">
-        <div class="t-btn" id="btnUp">▲</div>
-        <div class="t-btn" id="btnLeft">◀</div>
-        <div class="t-btn" id="btnDown">▼</div>
-        <div class="t-btn" id="btnRight">▶</div>
+    <!-- Mobile Touch Controls -->
+    <div id="mobileControls">
+        <div id="dpad">
+            <div class="t-btn" id="btnUp">▲</div>
+            <div class="t-btn" id="btnLeft">◀</div>
+            <div class="t-btn" id="btnDown">▼</div>
+            <div class="t-btn" id="btnRight">▶</div>
+        </div>
+        <div id="actionCluster">
+            <div class="act-btn" id="btnAtk">STRIKE</div>
+            <div class="act-btn" id="btnMine" style="border-color:#38bdf8;">MINE</div>
+        </div>
     </div>
-
-    <div id="actionCluster" style="display:none;">
-        <div class="act-btn" id="btnParry">PARRY</div>
-        <div class="act-btn" id="btnTech">TECH</div>
-        <div class="act-btn" id="btnDodge">DODGE</div>
-        <div class="act-btn" id="btnAttack">ATK</div>
-    </div>
-
-    <button id="btnCam" onclick="toggleCamera()">🎥</button>
 
     <div id="canvas3d"></div>
 
     <script>
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || ('ontouchstart' in window);
+        if (isMobile) {
+            document.getElementById('mobileControls').style.display = 'block';
+        } else {
+            document.getElementById('crosshair').style.display = 'block';
+        }
+
         const socket = io();
-        let myId = null, myData = null;
-        const playerMeshes = {};
-        let isFirstPerson = false;
+        let myId = null, myData = null, serverEnemies = [];
+        const playerMeshes = {}, enemyMeshes = {};
 
-        // Web Audio Synthesizer for Telegraph Sound Cues
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        function playTone(freq, type, duration) {
-            try {
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = type;
-                osc.frequency.value = freq;
-                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start();
-                osc.stop(audioCtx.currentTime + duration);
-            } catch(e){}
+        // Keybindings (Customizable)
+        let keybinds = JSON.parse(localStorage.getItem('skyrim_keys')) || {
+            forward: 'w', backward: 's', left: 'a', right: 'd',
+            attack: 'f', inventory: 'i', craft: 'c'
+        };
+
+        function renderKeybinds() {
+            const container = document.getElementById('keybindList');
+            container.innerHTML = '';
+            for (let action in keybinds) {
+                const row = document.createElement('div');
+                row.style.display = 'flex'; row.style.justifyContent = 'space-between'; row.style.margin = '4px 0';
+                row.innerHTML = `<span>${action.toUpperCase()}:</span><button style="width:70px; background:#333; color:#fff;" onclick="rebindKey('${action}')">${keybinds[action].toUpperCase()}</button>`;
+                container.appendChild(row);
+            }
+        }
+        renderKeybinds();
+
+        function rebindKey(action) {
+            const newKey = prompt(`Press new key for ${action.toUpperCase()}:`);
+            if (newKey) {
+                keybinds[action] = newKey.toLowerCase();
+                localStorage.setItem('skyrim_keys', JSON.stringify(keybinds));
+                renderKeybinds();
+            }
         }
 
-        function enterWorld() {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            document.getElementById('charModal').style.display = 'none';
-            document.getElementById('hud').style.display = 'block';
-            document.getElementById('dpad').style.display = 'grid';
-            document.getElementById('actionCluster').style.display = 'grid';
-
-            socket.emit('joinGame', {
-                characterClass: document.getElementById('classSel').value,
-                trait: document.getElementById('traitSel').value,
-                subclass: 'Standard'
-            });
+        function toggleModal(id) {
+            const m = document.getElementById(id);
+            m.style.display = m.style.display === 'flex' ? 'none' : 'flex';
         }
 
-        // Three.js Scene Setup
+        // Three.js Skyrim Landscape
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87ceeb); // Day Sky
-        scene.fog = new THREE.Fog(0x87ceeb, 20, 60);
+        scene.background = new THREE.Color(0x87ceeb);
+        scene.fog = new THREE.FogExp2(0x87ceeb, 0.012);
 
-        const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 100);
+        const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 500);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
         document.getElementById('canvas3d').appendChild(renderer.domElement);
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-        scene.add(ambientLight);
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        dirLight.position.set(20, 40, 20);
-        scene.add(dirLight);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); scene.add(ambientLight);
+        const sunLight = new THREE.DirectionalLight(0xfff7ed, 0.9); sunLight.position.set(50, 100, 50); scene.add(sunLight);
 
-        // Voxel Grass Ground
-        const ground = new THREE.Mesh(
-            new THREE.BoxGeometry(100, 1, 100),
-            new THREE.MeshLambertMaterial({ color: 0x388e3c })
-        );
-        ground.position.y = -0.5;
-        scene.add(ground);
-
-        // Voxel Gazebo (Shade for Vampires)
-        const shelter = new THREE.Group();
-        const roof = new THREE.Mesh(new THREE.BoxGeometry(12, 1, 12), new THREE.MeshLambertMaterial({ color: 0x4e342e }));
-        roof.position.y = 5; shelter.add(roof);
-        const pillar1 = new THREE.Mesh(new THREE.BoxGeometry(0.8, 5, 0.8), new THREE.MeshLambertMaterial({ color: 0x3e2723 }));
-        pillar1.position.set(5, 2.5, 5); shelter.add(pillar1);
-        const pillar2 = pillar1.clone(); pillar2.position.set(-5, 2.5, -5); shelter.add(pillar2);
-        shelter.position.set(15, 0, 15);
-        scene.add(shelter);
-
-        // 3D Telegraph Indicator Mesh on Ground
-        const telegraphRing = new THREE.Mesh(
-            new THREE.RingGeometry(2.5, 3.2, 32),
-            new THREE.MeshBasicMaterial({ color: 0x00e5ff, side: THREE.DoubleSide, transparent: true, opacity: 0 })
-        );
-        telegraphRing.rotation.x = Math.PI / 2;
-        telegraphRing.position.y = 0.05;
-        scene.add(telegraphRing);
-
-        // Boss Model (Voxel Rotwood Behemoth)
-        const bossGroup = new THREE.Group();
-        const bossBody = new THREE.Mesh(new THREE.BoxGeometry(3, 4.5, 2), new THREE.MeshLambertMaterial({ color: 0x2e1c0c }));
-        bossBody.position.y = 2.25; bossGroup.add(bossBody);
-        const bossHead = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshLambertMaterial({ color: 0x1b5e20 }));
-        bossHead.position.y = 5.2; bossGroup.add(bossHead);
-        scene.add(bossGroup);
-
-        // Helper: Build Minecraft/Voxel Character Rig
-        function createVoxelPlayer(p) {
-            const charGroup = new THREE.Group();
-            let skinColor = 0xd7ccc8;
-            let torsoColor = 0x1565c0; // Default blue
-
-            if (p.characterClass === 'Warrior') torsoColor = 0x78909c; // Steel
-            if (p.characterClass === 'Assassin') torsoColor = 0x212121; // Black leather
-            if (p.characterClass === 'Mage') torsoColor = 0x512da8; // Purple robes
-            if (p.characterClass === 'Guard') torsoColor = 0x37474f; // Heavy plate
-
-            if (p.trait === 'Vampire') skinColor = 0xf5f5f5;
-            if (p.trait === 'Werewolf' && p.isTransformed) {
-                skinColor = 0x4e342e;
-                torsoColor = 0x3e2723;
+        // Procedural Mountains & Valleys Heightmap
+        const terrainGeo = new THREE.PlaneGeometry(350, 350, 64, 64);
+        terrainGeo.rotateX(-Math.PI / 2);
+        const pos = terrainGeo.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+            const x = pos.getX(i);
+            const z = pos.getZ(i);
+            // High perimeter mountains, rolling interior
+            let distFromCenter = Math.sqrt(x*x + z*z);
+            let height = Math.sin(x * 0.05) * Math.cos(z * 0.05) * 4;
+            if (distFromCenter > 70) {
+                height += Math.pow((distFromCenter - 70) * 0.25, 1.6); // Mountain Wall
             }
+            pos.setY(i, height);
+        }
+        terrainGeo.computeVertexNormals();
+        const terrainMat = new THREE.MeshLambertMaterial({ color: 0x2e4a23 });
+        const terrain = new THREE.Mesh(terrainGeo, terrainMat);
+        scene.add(terrain);
 
-            // Head (0.6 x 0.6 x 0.6)
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), new THREE.MeshLambertMaterial({ color: skinColor }));
-            head.position.y = 1.6; charGroup.add(head);
+        // Skyrim Deep Cave Cavern (x: -50, z: -50)
+        const caveEntrance = new THREE.Group();
+        const arch = new THREE.Mesh(new THREE.TorusGeometry(6, 2.5, 8, 16, Math.PI), new THREE.MeshLambertMaterial({ color: 0x1c1917 }));
+        arch.position.set(-50, 2, -50); arch.rotation.y = Math.PI / 4;
+        const caveLight = new THREE.PointLight(0xf97316, 2, 25); caveLight.position.set(-50, 3, -50);
+        caveEntrance.add(arch, caveLight);
+        scene.add(caveEntrance);
 
-            // Torso (0.8 x 0.9 x 0.4)
-            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.9, 0.4), new THREE.MeshLambertMaterial({ color: torsoColor }));
-            torso.position.y = 0.85; charGroup.add(torso);
+        // Resource Veins (Iron Mine x: 10, z: 10)
+        const ironVein = new THREE.Mesh(new THREE.DodecahedronGeometry(1.2), new THREE.MeshLambertMaterial({ color: 0x71717a }));
+        ironVein.position.set(10, 0.8, 10); scene.add(ironVein);
 
-            // Left / Right Arm
-            const armGeo = new THREE.BoxGeometry(0.25, 0.8, 0.25);
-            const armMat = new THREE.MeshLambertMaterial({ color: torsoColor });
-            const leftArm = new THREE.Mesh(armGeo, armMat); leftArm.position.set(-0.55, 0.8, 0); charGroup.add(leftArm);
-            const rightArm = new THREE.Mesh(armGeo, armMat); rightArm.position.set(0.55, 0.8, 0); charGroup.add(rightArm);
-
-            // Left / Right Leg
-            const legGeo = new THREE.BoxGeometry(0.3, 0.8, 0.3);
-            const legMat = new THREE.MeshLambertMaterial({ color: 0x1a237e });
-            const leftLeg = new THREE.Mesh(legGeo, legMat); leftLeg.position.set(-0.22, 0.4, 0); charGroup.add(leftLeg);
-            const rightLeg = new THREE.Mesh(legGeo, legMat); rightLeg.position.set(0.22, 0.4, 0); charGroup.add(rightLeg);
-
-            charGroup.position.set(p.x, 0, p.z);
-            charGroup.userData = { leftLeg, rightLeg, leftArm, rightArm, head };
-            scene.add(charGroup);
-            return charGroup;
+        // Enemy Mesh Generator
+        function buildEnemyMesh(e) {
+            const g = new THREE.Group();
+            let color = e.type === 'vampire' ? 0x7f1d1d : (e.type === 'werewolf' ? 0x451a03 : 0x3f3f46);
+            let size = e.type === 'werewolf' ? 1.6 : 1.2;
+            const body = new THREE.Mesh(new THREE.BoxGeometry(size, size*1.5, size), new THREE.MeshLambertMaterial({ color }));
+            body.position.y = (size*1.5)/2;
+            g.add(body);
+            g.position.set(e.x, 0, e.z);
+            scene.add(g);
+            return g;
         }
 
-        // Network Sync
+        // Network Setup
         socket.on('init', (data) => {
-            myId = data.id; myData = data.players[myId];
-            for (let id in data.players) playerMeshes[id] = createVoxelPlayer(data.players[id]);
+            myId = data.id; myData = data.players[myId]; serverEnemies = data.enemies;
+            serverEnemies.forEach(e => enemyMeshes[e.id] = buildEnemyMesh(e));
+            socket.emit('joinGame', { characterClass: 'Warrior' });
             updateHUD();
         });
 
-        socket.on('newPlayer', (p) => { playerMeshes[p.id] = createVoxelPlayer(p); });
-        socket.on('playerMoved', (p) => {
-            if (playerMeshes[p.id]) {
-                playerMeshes[p.id].position.set(p.x, 0, p.z);
-                playerMeshes[p.id].rotation.y = p.rotation;
+        socket.on('enemyUpdated', (e) => {
+            const idx = serverEnemies.findIndex(x => x.id === e.id);
+            if (idx !== -1) serverEnemies[idx] = e;
+            if (enemyMeshes[e.id]) {
+                enemyMeshes[e.id].visible = e.hp > 0;
             }
         });
+
+        socket.on('infectionContracted', ({ type, duration }) => {
+            const alert = document.getElementById('infectionAlert');
+            alert.style.display = 'block';
+            alert.innerText = `☣️ Contracted ${type} Sickness! Survive ${duration}s without dying to turn!`;
+        });
+
+        socket.on('transformed', (trait) => {
+            document.getElementById('infectionAlert').style.display = 'none';
+            alert(`🔥 THE TRANSFORMATION COMPLETE! You are now a ${trait}!`);
+        });
+
+        socket.on('playerDied', (msg) => { alert(msg); document.getElementById('infectionAlert').style.display = 'none'; });
+        socket.on('lootReceived', (msg) => alert(msg));
+
         socket.on('playerUpdated', (p) => {
-            if (p.id === myId) { myData = p; updateHUD(); }
-            if (playerMeshes[p.id]) {
-                scene.remove(playerMeshes[p.id]);
-                playerMeshes[p.id] = createVoxelPlayer(p);
+            if (p.id === myId) {
+                myData = p;
+                updateHUD();
+                renderInventory();
             }
-        });
-        socket.on('playerLeft', (id) => {
-            if (playerMeshes[id]) { scene.remove(playerMeshes[id]); delete playerMeshes[id]; }
-        });
-
-        // Day/Night Sync
-        socket.on('timeSync', ({ isDay, isFullMoon }) => {
-            if (isDay) {
-                scene.background.set(0x87ceeb); scene.fog.color.set(0x87ceeb);
-                ambientLight.intensity = 0.6;
-                document.getElementById('hudWorld').innerText = "Time: Day ☀️";
-                // Vampire Sunburn check
-                if (myData && myData.trait === 'Vampire') {
-                    // Check if outside shelter (x: 10 to 20, z: 10 to 20)
-                    const underShade = myData.x > 9 && myData.x < 21 && myData.z > 9 && myData.z < 21;
-                    if (!underShade) {
-                        myData.hp = Math.max(1, myData.hp - 2);
-                        document.getElementById('hpFill').style.width = (myData.hp / myData.maxHp * 100) + '%';
-                    }
-                }
-            } else {
-                scene.background.set(0x050510); scene.fog.color.set(0x050510);
-                ambientLight.intensity = 0.2;
-                document.getElementById('hudWorld').innerText = isFullMoon ? "Time: FULL MOON 🌕 (Feral Werewolf)" : "Time: Night 🌙";
-            }
-        });
-
-        // Boss Combat Handlers
-        let activeTelegraph = null;
-        let canDefend = false;
-
-        socket.on('bossTelegraphStart', ({ type, duration }) => {
-            activeTelegraph = type;
-            canDefend = true;
-            const banner = document.getElementById('telegraphBanner');
-            banner.style.display = 'block';
-
-            if (type === 'parry') {
-                banner.innerText = "⚡ PALE BLUE: PARRY! [Space / Parry Btn]";
-                banner.style.background = "#0288d1";
-                telegraphRing.material.color.set(0x00e5ff);
-                playTone(2200, 'sine', 0.25);
-            } else if (type === 'dodge') {
-                banner.innerText = "⚠️ AMBER YELLOW: DODGE! [Shift / Dodge Btn]";
-                banner.style.background = "#f57f17";
-                telegraphRing.material.color.set(0xffd600);
-                playTone(180, 'sawtooth', 0.3);
-            } else if (type === 'technique') {
-                banner.innerText = "💀 CRIMSON RED: TECHNIQUE COUNTER! [E / Tech Btn]";
-                banner.style.background = "#b71c1c";
-                telegraphRing.material.color.set(0xff1744);
-                playTone(3500, 'triangle', 0.4);
-            }
-
-            telegraphRing.material.opacity = 0.8;
-            setTimeout(() => {
-                banner.style.display = 'none';
-                telegraphRing.material.opacity = 0;
-            }, duration);
-        });
-
-        socket.on('bossStrike', () => {
-            canDefend = false;
-        });
-
-        socket.on('bossDamaged', ({ hp, maxHp, staggered }) => {
-            document.getElementById('bossHpFill').style.width = (hp / maxHp * 100) + '%';
-            if (staggered) {
-                bossGroup.rotation.z = 0.4;
-                setTimeout(() => { bossGroup.rotation.z = 0; }, 1200);
-            }
-        });
-
-        socket.on('versionCheck', (v) => {
-            if (v !== "0.0.5") document.getElementById('updateBanner').style.display = 'block';
         });
 
         function updateHUD() {
-            document.getElementById('hudName').innerText = `${myData.characterClass} (Lv.${myData.level})`;
-            document.getElementById('hudTrait').innerText = `Trait: ${myData.trait} ${myData.isTransformed ? '[Transformed]' : ''}`;
+            if (!myData) return;
+            document.getElementById('hudName').innerText = `Dovahkiin (Lv.${myData.level})`;
+            document.getElementById('hudTrait').innerText = `Form: ${myData.trait}`;
             document.getElementById('hpFill').style.width = (myData.hp / myData.maxHp * 100) + '%';
-            document.getElementById('staFill').style.width = myData.stamina + '%';
         }
 
-        // Combat Actions (Parry, Dodge, Technique, Attack)
-        let playerCombatState = 'idle'; // idle, parrying, dodging, tech
-        function triggerDefend(actionType) {
-            if (canDefend && activeTelegraph === actionType) {
-                canDefend = false;
-                socket.emit('defendSuccess', { action: actionType });
-                playTone(1200, 'sine', 0.15); // Success ping
-            } else {
-                // Mistimed action flinch
-                playerCombatState = 'flinch';
-                setTimeout(() => { playerCombatState = 'idle'; }, 400);
+        function renderInventory() {
+            const list = document.getElementById('invList');
+            list.innerHTML = '';
+            for (let item in myData.inventory) {
+                if (myData.inventory[item] > 0) {
+                    list.innerHTML += `<div>• ${item.replace('_',' ').toUpperCase()}: <b>${myData.inventory[item]}</b></div>`;
+                }
             }
         }
 
-        function triggerAttack() {
-            socket.emit('attackBoss');
-            playTone(400, 'square', 0.1);
+        function craft(recipe) { socket.emit('craftItem', recipe); }
+
+        // Interaction (Attack / Mine)
+        function checkInteractions() {
+            if (!myData) return;
+            // Check ore mining
+            const dOre = Math.hypot(camera.position.x - 10, camera.position.z - 10);
+            if (dOre < 4) {
+                document.getElementById('promptText').style.display = 'block';
+                document.getElementById('promptText').innerText = `Press [${keybinds.attack.toUpperCase()}] to Mine Iron`;
+                return;
+            }
+            // Check enemies nearby
+            let nearEnemy = serverEnemies.find(e => e.hp > 0 && Math.hypot(camera.position.x - e.x, camera.position.z - e.z) < 5);
+            if (nearEnemy) {
+                document.getElementById('promptText').style.display = 'block';
+                document.getElementById('promptText').innerText = `Press [${keybinds.attack.toUpperCase()}] to Strike ${nearEnemy.name} (${nearEnemy.hp} HP)`;
+                return;
+            }
+            document.getElementById('promptText').style.display = 'none';
         }
 
-        // Input Bindings (PC + Touch)
+        function executeAction() {
+            // Mine
+            if (Math.hypot(camera.position.x - 10, camera.position.z - 10) < 4) {
+                socket.emit('gatherResource', 'iron_ore');
+                return;
+            }
+            // Attack nearest enemy
+            let nearEnemy = serverEnemies.find(e => e.hp > 0 && Math.hypot(camera.position.x - e.x, camera.position.z - e.z) < 5);
+            if (nearEnemy) {
+                socket.emit('attackEnemy', nearEnemy.id);
+            }
+        }
+
+        // Pointer Lock (Mouse Sensitivity) on PC
+        if (!isMobile) {
+            document.body.addEventListener('click', () => { document.body.requestPointerLock(); });
+            document.addEventListener('mousemove', (e) => {
+                if (document.pointerLockElement === document.body) {
+                    const sens = parseFloat(document.getElementById('mouseSens').value) * 0.0008;
+                    camera.rotation.y -= e.movementX * sens;
+                }
+            });
+        }
+
+        // Controls
+        let keys = { w: false, s: false, a: false, d: false };
         window.addEventListener('keydown', (e) => {
-            if (e.key === ' ' || e.key === 'q') triggerDefend('parry');
-            if (e.key === 'Shift') triggerDefend('dodge');
-            if (e.key === 'e') triggerDefend('technique');
-            if (e.key === 'f') triggerAttack();
-            if (e.key === 't') socket.emit('toggleWerewolf');
+            const k = e.key.toLowerCase();
+            if (k === keybinds.forward) keys.w = true;
+            if (k === keybinds.backward) keys.s = true;
+            if (k === keybinds.left) keys.a = true;
+            if (k === keybinds.right) keys.d = true;
+            if (k === keybinds.attack) executeAction();
+            if (k === keybinds.inventory) toggleModal('invModal');
+            if (k === keybinds.craft) toggleModal('craftModal');
+        });
+        window.addEventListener('keyup', (e) => {
+            const k = e.key.toLowerCase();
+            if (k === keybinds.forward) keys.w = false;
+            if (k === keybinds.backward) keys.s = false;
+            if (k === keybinds.left) keys.a = false;
+            if (k === keybinds.right) keys.d = false;
         });
 
-        document.getElementById('btnParry').onclick = () => triggerDefend('parry');
-        document.getElementById('btnDodge').onclick = () => triggerDefend('dodge');
-        document.getElementById('btnTech').onclick = () => triggerDefend('technique');
-        document.getElementById('btnAttack').onclick = triggerAttack;
-
-        // Mobile D-Pad & PC Movement
-        let keys = { w: false, s: false, a: false, d: false };
-        window.addEventListener('keydown', (e) => { if (keys[e.key.toLowerCase()] !== undefined) keys[e.key.toLowerCase()] = true; });
-        window.addEventListener('keyup', (e) => { if (keys[e.key.toLowerCase()] !== undefined) keys[e.key.toLowerCase()] = false; });
-
+        // Touch Bindings for Mobile
         function bindTouch(id, k) {
             const el = document.getElementById(id);
             el.addEventListener('touchstart', (e) => { e.preventDefault(); keys[k] = true; });
             el.addEventListener('touchend', (e) => { e.preventDefault(); keys[k] = false; });
         }
         bindTouch('btnUp', 'w'); bindTouch('btnDown', 's'); bindTouch('btnLeft', 'a'); bindTouch('btnRight', 'd');
+        document.getElementById('btnAtk').onclick = executeAction;
+        document.getElementById('btnMine').onclick = () => socket.emit('gatherResource', 'iron_ore');
 
-        function toggleCamera() { isFirstPerson = !isFirstPerson; }
-
-        // Render & Voxel Walking Animation Loop
-        let walkClock = 0;
+        // Loop
+        camera.position.set(0, 3, 15);
         function animate() {
             requestAnimationFrame(animate);
 
-            if (myData && playerMeshes[myId]) {
-                const mesh = playerMeshes[myId];
-                let isMoving = false;
+            let moved = false;
+            if (keys.w) { camera.position.x -= Math.sin(camera.rotation.y) * 0.16; camera.position.z -= Math.cos(camera.rotation.y) * 0.16; moved = true; }
+            if (keys.s) { camera.position.x += Math.sin(camera.rotation.y) * 0.12; camera.position.z += Math.cos(camera.rotation.y) * 0.12; moved = true; }
+            if (keys.a) { camera.position.x -= Math.cos(camera.rotation.y) * 0.12; camera.position.z += Math.sin(camera.rotation.y) * 0.12; moved = true; }
+            if (keys.d) { camera.position.x += Math.cos(camera.rotation.y) * 0.12; camera.position.z -= Math.sin(camera.rotation.y) * 0.12; moved = true; }
 
-                if (keys.a) { mesh.rotation.y += 0.05; isMoving = true; }
-                if (keys.d) { mesh.rotation.y -= 0.05; isMoving = true; }
-                if (keys.w) {
-                    mesh.position.x -= Math.sin(mesh.rotation.y) * 0.14;
-                    mesh.position.z -= Math.cos(mesh.rotation.y) * 0.14;
-                    isMoving = true;
-                }
-                if (keys.s) {
-                    mesh.position.x += Math.sin(mesh.rotation.y) * 0.09;
-                    mesh.position.z += Math.cos(mesh.rotation.y) * 0.09;
-                    isMoving = true;
-                }
-
-                if (isMoving) {
-                    walkClock += 0.2;
-                    mesh.userData.leftLeg.rotation.x = Math.sin(walkClock) * 0.6;
-                    mesh.userData.rightLeg.rotation.x = -Math.sin(walkClock) * 0.6;
-                    mesh.userData.leftArm.rotation.x = -Math.sin(walkClock) * 0.6;
-                    mesh.userData.rightArm.rotation.x = Math.sin(walkClock) * 0.6;
-                    socket.emit('move', { x: mesh.position.x, z: mesh.position.z, rotation: mesh.rotation.y });
-                } else {
-                    mesh.userData.leftLeg.rotation.x = 0;
-                    mesh.userData.rightLeg.rotation.x = 0;
-                    mesh.userData.leftArm.rotation.x = 0;
-                    mesh.userData.rightArm.rotation.x = 0;
-                }
-
-                // Camera follow
-                if (isFirstPerson) {
-                    camera.position.set(mesh.position.x, 1.6, mesh.position.z);
-                    camera.rotation.y = mesh.rotation.y + Math.PI;
-                } else {
-                    camera.position.x = mesh.position.x + Math.sin(mesh.rotation.y) * 5;
-                    camera.position.z = mesh.position.z + Math.cos(mesh.rotation.y) * 5;
-                    camera.position.y = 3.5;
-                    camera.lookAt(mesh.position.x, 1.2, mesh.position.z);
-                }
+            if (moved) {
+                checkInteractions();
+                socket.emit('move', { x: camera.position.x, z: camera.position.z, rotation: camera.rotation.y });
             }
 
             renderer.render(scene, camera);
