@@ -8,26 +8,55 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
-const GAME_VERSION = "0.0.6";
+const GAME_VERSION = "0.0.7";
 
-// Day/Night Cycle (90s Day, 60s Night)
+// Real-world Full Moon Clock (120s total: 60s Day, 30s Night, 30s Full Moon)
 let worldTime = 0;
 let isDay = true;
 let isFullMoon = false;
 
 setInterval(() => {
-    worldTime = (worldTime + 1) % 150;
-    isDay = worldTime < 90;
-    isFullMoon = worldTime >= 120;
+    worldTime = (worldTime + 1) % 120;
+    isDay = worldTime < 60;
+    isFullMoon = worldTime >= 90;
     io.emit('timeSync', { worldTime, isDay, isFullMoon });
 }, 1000);
 
-// Fixed Enemy Spawns (Skyrim-style locations)
-let enemies = [
-    { id: 'wolf_1', type: 'werewolf', name: 'Alpha Lycan', x: 60, z: -60, hp: 450, maxHp: 450, zone: 'Mountain Ridge' },
-    { id: 'vamp_1', type: 'vampire', name: 'Crypt Vampire Lord', x: -50, z: -50, hp: 400, maxHp: 400, zone: 'Deep Cave' },
-    { id: 'rogue_1', type: 'rogue', name: 'Wilderness Outlaw', x: 10, z: 30, hp: 200, maxHp: 200, zone: 'Valley Camp' }
-];
+// Training Dummy (Spawns in Training Yard, endlessly cycles telegraphs for practice)
+let dummy = {
+    x: 0, z: -12,
+    currentTelegraph: 'white', // white (parry), red (technique), violet (dive over hazard)
+    active: true
+};
+
+setInterval(() => {
+    const telegraphs = ['white', 'red', 'violet'];
+    dummy.currentTelegraph = telegraphs[Math.floor(Math.random() * telegraphs.length)];
+    io.emit('dummyTelegraph', { type: dummy.currentTelegraph, duration: 1600 });
+}, 4500);
+
+// Wilderness Boss: Rotwood Behemoth (25% HP Threshold Events)
+let boss = {
+    x: 45, z: -45,
+    maxHp: 2000, hp: 2000,
+    threshold: 4, // 4 = 100%, 3 = 75%, 2 = 50% (adds phase), 1 = 25% (enrage)
+    state: 'idle',
+    currentTelegraph: null
+};
+
+setInterval(() => {
+    if (Object.keys(players).length === 0 || boss.hp <= 0) return;
+    if (boss.state === 'idle') {
+        boss.state = 'telegraph';
+        const attacks = ['white', 'red', 'violet'];
+        boss.currentTelegraph = attacks[Math.floor(Math.random() * attacks.length)];
+        
+        io.emit('bossTelegraph', { type: boss.currentTelegraph, duration: 1800 });
+        setTimeout(() => {
+            boss.state = 'idle';
+        }, 2200);
+    }
+}, 5500);
 
 let players = {};
 
@@ -37,18 +66,19 @@ io.on('connection', (socket) => {
     socket.on('joinGame', (data) => {
         players[socket.id] = {
             id: socket.id,
-            x: 0, z: 15,
-            rotation: 0,
+            x: 0, z: 5, rotation: 0,
             characterClass: data.characterClass || 'Warrior',
-            trait: 'Human', // Starts human until bitten & survives!
-            infection: null, // { type: 'Vampire'|'Werewolf', timer: 45 }
+            subclass: data.subclass || 'Medium',
+            trait: data.trait || 'Human', // Vampire, Werewolf, Human
             level: 1, xp: 0,
-            hp: 120, maxHp: 120,
-            stamina: 100,
-            inventory: { iron_ore: 2, herbs: 3, wolf_pelt: 0, vampire_dust: 0, iron_sword: 0, wolf_armor: 0, sun_potion: 0 }
+            hp: 120, maxHp: 120, stamina: 100,
+            carriedGold: 50, bankGold: 100, villageDebt: 0,
+            offHand: 'Shield', // 'Shield' or 'Dagger'
+            isTwoHanding: false,
+            stance: 'Blade' // for Hybrid Guard: 'Shield' or 'Blade'
         };
 
-        socket.emit('init', { id: socket.id, players, enemies, worldTime, isDay, isFullMoon });
+        socket.emit('init', { id: socket.id, players, boss, dummy, worldTime, isDay, isFullMoon });
         socket.broadcast.emit('newPlayer', players[socket.id]);
     });
 
@@ -61,98 +91,82 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Player attacks spotted enemy
-    socket.on('attackEnemy', (enemyId) => {
-        const p = players[socket.id];
-        const enemy = enemies.find(e => e.id === enemyId);
-        if (!p || !enemy || enemy.hp <= 0) return;
-
-        let dmg = 35 + (p.level * 5);
-        if (p.inventory.iron_sword > 0) dmg += 25;
-        if (p.trait === 'Werewolf') dmg *= 1.5;
-
-        enemy.hp = Math.max(0, enemy.hp - dmg);
-        io.emit('enemyUpdated', enemy);
-
-        // Retaliation & Infection Chance
-        if (enemy.hp > 0) {
-            const retaliationDmg = 20;
-            p.hp -= retaliationDmg;
-
-            // BITE INFECTION LOGIC (Only if not already monster & survived hit)
-            if (p.hp > 0 && p.trait === 'Human' && !p.infection) {
-                if (enemy.type === 'vampire' && Math.random() < 0.40) {
-                    p.infection = { type: 'Vampire', timer: 45 };
-                    socket.emit('infectionContracted', { type: 'Vampire', duration: 45 });
-                } else if (enemy.type === 'werewolf' && Math.random() < 0.40) {
-                    p.infection = { type: 'Werewolf', timer: 45 };
-                    socket.emit('infectionContracted', { type: 'Werewolf', duration: 45 });
-                }
-            }
-
-            // DEATH CHECK: IF YOU DIE, INFECTION IS WIPED!
-            if (p.hp <= 0) {
-                p.infection = null; // Died before turning!
-                p.hp = p.maxHp;
-                p.x = 0; p.z = 15; // Respawn at starter shrine
-                socket.emit('playerDied', "You were slain! The infection was purged by death.");
-            }
-            io.emit('playerUpdated', p);
-        } else {
-            // Enemy Loot Drops
-            if (enemy.type === 'werewolf') p.inventory.wolf_pelt += 2;
-            if (enemy.type === 'vampire') p.inventory.vampire_dust += 2;
-            p.xp += 60;
-            if (p.xp >= p.level * 100) { p.level++; p.xp = 0; p.maxHp += 20; p.hp = p.maxHp; }
-            io.emit('playerUpdated', p);
-            socket.emit('lootReceived', `Looted ${enemy.name}!`);
-
-            // Respawn enemy after 20 seconds
-            setTimeout(() => {
-                enemy.hp = enemy.maxHp;
-                io.emit('enemyUpdated', enemy);
-            }, 20000);
-        }
-    });
-
-    // Resource Gathering
-    socket.on('gatherResource', (type) => {
-        const p = players[socket.id];
-        if (p && p.inventory[type] !== undefined) {
-            p.inventory[type] += 1;
-            socket.emit('playerUpdated', p);
-            socket.emit('lootReceived', `Gathered 1x ${type.replace('_', ' ')}!`);
-        }
-    });
-
-    // Crafting
-    socket.on('craftItem', (recipe) => {
+    // Successful Defensive Reaction (Parry, Technique Counter, Dive over Violet)
+    socket.on('defendSuccess', ({ type, target }) => {
         const p = players[socket.id];
         if (!p) return;
-        if (recipe === 'iron_sword' && p.inventory.iron_ore >= 3) {
-            p.inventory.iron_ore -= 3; p.inventory.iron_sword += 1;
-        } else if (recipe === 'wolf_armor' && p.inventory.wolf_pelt >= 3) {
-            p.inventory.wolf_pelt -= 3; p.inventory.wolf_armor += 1; p.maxHp += 40; p.hp += 40;
-        } else if (recipe === 'sun_potion' && p.inventory.vampire_dust >= 1 && p.inventory.herbs >= 2) {
-            p.inventory.vampire_dust -= 1; p.inventory.herbs -= 2; p.inventory.sun_potion += 1;
+
+        if (target === 'dummy') {
+            socket.emit('feedback', `Mastered ${type.toUpperCase()} reaction! +10 XP`);
+            p.xp += 10;
+        } else if (target === 'boss' && boss.hp > 0) {
+            boss.hp -= 150;
+            p.xp += 40;
+
+            // Check 25% Thresholds
+            const currentThreshold = Math.ceil((boss.hp / boss.maxHp) * 4);
+            if (currentThreshold < boss.threshold) {
+                boss.threshold = currentThreshold;
+                io.emit('bossThresholdEvent', { threshold: boss.threshold });
+            }
+            io.emit('bossUpdated', boss);
+        }
+
+        if (p.xp >= p.level * 80) {
+            p.level++; p.xp = 0; p.maxHp += 20; p.hp = p.maxHp;
+            socket.emit('feedback', `Level Up! You are now Level ${p.level}!`);
+        }
+        io.emit('playerUpdated', p);
+    });
+
+    // Attacks
+    socket.on('attackEntity', ({ target }) => {
+        const p = players[socket.id];
+        if (!p) return;
+
+        let dmg = 25 + (p.level * 4);
+        if (p.isTwoHanding) dmg *= 1.2; // Two-handing stance bonus
+        if (p.characterClass === 'Guard' && p.stance === 'Blade') dmg *= 1.3;
+
+        if (target === 'boss' && boss.hp > 0) {
+            boss.hp = Math.max(0, boss.hp - dmg);
+            io.emit('bossUpdated', boss);
+            if (boss.hp <= 0) {
+                io.emit('bossDefeated');
+                setTimeout(() => { boss.hp = boss.maxHp; boss.threshold = 4; io.emit('bossUpdated', boss); }, 15000);
+            }
+        }
+    });
+
+    // Banking & Village Loan System
+    socket.on('bankAction', ({ action, amount }) => {
+        const p = players[socket.id];
+        if (!p) return;
+        if (action === 'deposit' && p.carriedGold >= amount) {
+            p.carriedGold -= amount; p.bankGold += amount;
+        } else if (action === 'withdraw' && p.bankGold >= amount) {
+            p.bankGold -= amount; p.carriedGold += amount;
+        } else if (action === 'loan') {
+            p.carriedGold += 100; p.villageDebt += 120; // 20g interest
+            socket.emit('feedback', "Borrowed 100g on Village Credit! Repay debt to maintain standing.");
+        } else if (action === 'repay' && p.carriedGold >= p.villageDebt && p.villageDebt > 0) {
+            p.carriedGold -= p.villageDebt; p.villageDebt = 0;
+            socket.emit('feedback', "Village debt settled! Your credit rating is pristine.");
         }
         socket.emit('playerUpdated', p);
     });
 
-    // Infection Incubation Countdown
-    setInterval(() => {
+    // Death Penalty: Lose 15% Carried Gold (Bank Gold is 100% Safe)
+    socket.on('playerDied', () => {
         const p = players[socket.id];
-        if (p && p.infection) {
-            p.infection.timer -= 1;
-            if (p.infection.timer <= 0) {
-                // SURVIVED! Turn into monster!
-                p.trait = p.infection.type;
-                p.infection = null;
-                socket.emit('transformed', p.trait);
-                io.emit('playerUpdated', p);
-            }
-        }
-    }, 1000);
+        if (!p) return;
+        const lost = Math.floor(p.carriedGold * 0.15);
+        p.carriedGold -= lost;
+        p.hp = p.maxHp;
+        p.x = 0; p.z = 5;
+        socket.emit('feedback', `You collapsed! Lost ${lost}g carried gold. Bank gold was safe.`);
+        socket.emit('playerUpdated', p);
+    });
 
     socket.on('disconnect', () => {
         delete players[socket.id];
@@ -162,5 +176,5 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
-    console.log(`[Skyrim RPG Engine] Running on port ${PORT} | Version: ${GAME_VERSION}`);
+    console.log(`[DarkRPG Master Engine] Running on port ${PORT} | Version: ${GAME_VERSION}`);
 });
