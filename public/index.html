@@ -5,58 +5,52 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="manifest" href="/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Master RPG: Open World</title>
+    <title>Open-World Voxel RPG</title>
     <style>
         * { touch-action: manipulation; user-select: none; box-sizing: border-box; }
         body { margin: 0; overflow: hidden; background: #000; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: white; }
         #canvas3d { width: 100vw; height: 100vh; display: block; }
-        
-        #crosshair { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 8px; height: 8px; border: 2px solid rgba(255,255,255,0.7); border-radius: 50%; pointer-events: none; z-index: 5; }
+        #crosshair { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 10px; height: 10px; border: 2px solid rgba(255,255,255,0.85); border-radius: 50%; pointer-events: none; z-index: 5; }
+
+        /* Damage Screen Flash */
+        #damageFlash { display: none; position: fixed; inset: 0; background: rgba(220, 38, 38, 0.45); pointer-events: none; z-index: 50; }
 
         /* HUD */
-        #hud { position: fixed; top: 15px; left: 15px; background: rgba(12,12,16,0.85); padding: 12px; border-radius: 6px; border: 1px solid #7c6d53; z-index: 10; font-size: 13px; min-width: 210px; pointer-events: none; }
+        #hud { position: fixed; top: 15px; left: 15px; background: rgba(12,12,18,0.9); padding: 12px; border-radius: 6px; border: 2px solid #854d0e; z-index: 10; font-size: 13px; min-width: 220px; pointer-events: none; }
         .bar { width: 100%; height: 8px; background: #222; margin: 3px 0 6px 0; border: 1px solid #555; border-radius: 2px; }
-        #hpFill { width: 100%; height: 100%; background: #dc2626; }
+        #hpFill { width: 100%; height: 100%; background: #dc2626; transition: width 0.15s; }
         #staFill { width: 100%; height: 100%; background: #16a34a; }
 
-        #bossHud { display: none; position: fixed; top: 15px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); padding: 8px 18px; border-radius: 8px; border: 2px solid #b91c1c; text-align: center; z-index: 10; min-width: 260px; }
-        #bossHpBar { width: 100%; height: 10px; background: #333; margin-top: 4px; }
-        #bossHpFill { width: 100%; height: 100%; background: #ef4444; transition: width 0.2s; }
-
-        /* Telegraph Alert Screen Banner */
         #telegraphBanner { display: none; position: fixed; top: 70px; left: 50%; transform: translateX(-50%); padding: 10px 24px; border-radius: 8px; font-weight: bold; font-size: 15px; z-index: 20; text-transform: uppercase; letter-spacing: 1px; }
-
-        /* Notification Toast */
         #toast { position: fixed; bottom: 85px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); padding: 8px 16px; border: 1px solid #eab308; display: none; z-index: 30; font-size: 13px; border-radius: 4px; text-align: center; }
 
         /* Modals */
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 100; align-items: center; justify-content: center; }
-        .window { background: #18181b; border: 2px solid #ca8a04; padding: 22px; border-radius: 8px; width: 90%; max-width: 420px; max-height: 85vh; overflow-y: auto; }
+        .window { background: #18181b; border: 2px solid #ca8a04; padding: 22px; border-radius: 8px; width: 90%; max-width: 440px; max-height: 85vh; overflow-y: auto; }
         button.btn { background: #27272a; border: 1px solid #71717a; color: white; padding: 8px; margin: 4px 0; width: 100%; cursor: pointer; border-radius: 4px; font-weight: bold; font-size: 14px; }
         button.btn:hover { background: #3f3f46; border-color: #facc15; }
 
-        /* Top Nav */
         #topNav { position: fixed; top: 15px; right: 15px; display: flex; gap: 8px; z-index: 10; }
-        .nav-btn { background: rgba(0,0,0,0.75); border: 1px solid #7c6d53; color: white; width: 38px; height: 38px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 17px; cursor: pointer; }
+        .nav-btn { background: rgba(0,0,0,0.75); border: 1px solid #854d0e; color: white; width: 38px; height: 38px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 17px; cursor: pointer; }
 
-        /* Mobile Touch Controls */
+        /* Mobile Controls */
         #mobileControls { display: none; position: fixed; inset: 0; pointer-events: none; z-index: 10; }
         #dpad { position: absolute; bottom: 25px; left: 20px; display: grid; grid-template-columns: 50px 50px 50px; grid-template-rows: 50px 50px; gap: 6px; pointer-events: auto; }
         .t-btn { background: rgba(255,255,255,0.18); border: 2px solid rgba(255,255,255,0.4); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: white; }
         #btnUp { grid-column: 2; grid-row: 1; } #btnLeft { grid-column: 1; grid-row: 2; } #btnDown { grid-column: 2; grid-row: 2; } #btnRight { grid-column: 3; grid-row: 2; }
 
-        /* Diamond Cluster: Attack, Parry, Technique, Parkour Dodge */
+        #btnJumpMobile { position: absolute; bottom: 95px; left: 80px; width: 55px; height: 55px; border-radius: 50%; background: #0284c7; border: 2px solid #fff; font-weight: bold; font-size: 12px; display: flex; align-items: center; justify-content: center; color: white; pointer-events: auto; }
+
+        /* Diamond Cluster */
         #diamondCluster { position: absolute; bottom: 25px; right: 20px; width: 140px; height: 140px; pointer-events: auto; }
         .c-btn { position: absolute; width: 48px; height: 48px; border-radius: 50%; border: 2px solid #fff; font-weight: bold; font-size: 11px; display: flex; align-items: center; justify-content: center; color: white; }
-        #btnTech { top: 0; left: 46px; background: #7e22ce; border-radius: 8px; transform: rotate(45deg); } /* Diamond */
+        #btnTech { top: 0; left: 46px; background: #7e22ce; border-radius: 8px; transform: rotate(45deg); }
         #btnTech span { transform: rotate(-45deg); }
         #btnParry { top: 46px; left: 0; background: #1d4ed8; }
         #btnDodge { top: 46px; right: 0; background: #d97706; }
         #btnAtk { bottom: 0; left: 46px; background: #b91c1c; }
 
-        /* Skills Cluster */
-        #skillCluster { position: absolute; bottom: 175px; right: 20px; display: flex; gap: 8px; pointer-events: auto; }
-        .s-btn { width: 44px; height: 44px; border-radius: 6px; border: 1px solid #eab308; background: rgba(0,0,0,0.8); color: #facc15; font-size: 11px; font-weight: bold; display: flex; align-items: center; justify-content: center; }
+        #autoJumpPill { position: fixed; top: 15px; left: 245px; background: rgba(0,0,0,0.85); border: 1px solid #777; padding: 6px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; z-index: 10; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
@@ -64,82 +58,51 @@
 <body>
 
     <div id="crosshair"></div>
+    <div id="damageFlash"></div>
     <div id="toast"></div>
 
-    <!-- HUD -->
     <div id="hud">
         <div id="hudName" style="font-weight:bold; color:#facc15;">Hero</div>
-        <div id="hudSpec" style="color:#a8a29e; font-size:11px;">Warrior (Medium)</div>
+        <div id="hudLocation" style="color:#38bdf8; font-size:11px;">Region: Riverwood</div>
         <div>HP</div><div class="bar"><div id="hpFill"></div></div>
         <div>STAMINA</div><div class="bar"><div id="staFill"></div></div>
-        <div id="hudGold" style="color:#fde047; margin-top:4px;">Carried: 50g | Bank: 100g</div>
-        <div id="hudDebt" style="color:#f87171; font-size:11px;">Village Debt: 0g</div>
-        <div id="hudWorld" style="color:#94a3b8; font-size:11px; margin-top:3px;">Time: Day ☀️</div>
+        <div id="hudGold" style="color:#fde047; margin-top:4px;">Carried: 60g</div>
+        <div id="hudBank" style="color:#94a3b8; font-size:11px;">Local Bank: 100g | Debt: 0g</div>
     </div>
 
-    <!-- Boss Health Bar -->
-    <div id="bossHud">
-        <div style="font-size:12px; color:#f87171; font-weight:bold;">ROTWOOD BEHEMOTH (PHASE <span id="bossPhase">1</span>)</div>
-        <div id="bossHpBar"><div id="bossHpFill"></div></div>
-    </div>
-
+    <div id="autoJumpPill" onclick="toggleAutoJump()">Auto-Jump: ON</div>
     <div id="telegraphBanner"></div>
 
-    <!-- Top Navigation Icons -->
     <div id="topNav">
         <div class="nav-btn" onclick="toggleModal('bankModal')">🏦</div>
-        <div class="nav-btn" onclick="toggleModal('charModal')">⚔️</div>
+        <div class="nav-btn" onclick="toggleModal('mapModal')">🗺️</div>
         <div class="nav-btn" onclick="toggleModal('settingsModal')">⚙️</div>
     </div>
 
-    <!-- Character Customizer Modal -->
-    <div id="charModal" class="modal">
+    <!-- Regional Bank Modal -->
+    <div id="bankModal" class="modal">
         <div class="window">
-            <h3 style="margin-top:0; color:#facc15;">Character Setup</h3>
-            <label>Combat Class:</label>
-            <select id="selClass" style="width:100%; padding:6px; margin:4px 0 10px 0; background:#27272a; color:#fff;">
-                <option value="Warrior">Warrior</option>
-                <option value="Assassin">Assassin</option>
-                <option value="Mage">Mage</option>
-                <option value="Guard">Guard</option>
-            </select>
-            <label>Specialization:</label>
-            <select id="selSpec" style="width:100%; padding:6px; margin:4px 0 10px 0; background:#27272a; color:#fff;">
-                <option value="Rusher">Rusher (Fast/Sprint)</option>
-                <option value="Heavy">Heavy (Super Armor)</option>
-                <option value="Medium">Medium (Balanced)</option>
-                <option value="Counter">Counter (15s Hold-Parry)</option>
-                <option value="Damage">Damage (Bleed Flurry)</option>
-                <option value="Stealth">Stealth (Smoke Vanish)</option>
-                <option value="Necromancer">Necromancer (Summons)</option>
-                <option value="Healer">Healer (Ground AoE/Sacrifice)</option>
-                <option value="PureDamage">Pure Damage (Beam)</option>
-                <option value="Guardian">Guardian (Warcry Taunt)</option>
-                <option value="Damager">Damager (Bleed Thorns)</option>
-                <option value="Hybrid">Hybrid (Stance Dance)</option>
-            </select>
-            <label>Off-Hand Support Tool:</label>
-            <select id="selOffhand" style="width:100%; padding:6px; margin:4px 0 10px 0; background:#27272a; color:#fff;">
-                <option value="Shield">Heavy Shield (+Block Stability)</option>
-                <option value="Dagger">Off-Hand Dagger (+Fast Parry & Bleed)</option>
-            </select>
-            <button class="btn" onclick="applyCharSetup()">Deploy Loadout</button>
-            <button class="btn" style="background:#444;" onclick="toggleModal('charModal')">Cancel</button>
+            <h3 style="margin-top:0; color:#facc15;" id="bankTitle">Village Bank</h3>
+            <p style="font-size:12px; color:#aaa;">Bank vaults are completely safe from fall damage and death drops.</p>
+            <button class="btn" onclick="bankAction('deposit', 25)">Deposit 25g into Local Vault</button>
+            <button class="btn" onclick="bankAction('withdraw', 25)">Withdraw 25g to Backpack</button>
+            <button class="btn" onclick="bankAction('loan')">Take 100g Loan (Village Credit)</button>
+            <button class="btn" onclick="bankAction('repay')">Repay Local Village Debt</button>
+            <button class="btn" style="margin-top:10px; background:#444;" onclick="toggleModal('bankModal')">Close</button>
         </div>
     </div>
 
-    <!-- Regional Bank & Debt Modal -->
-    <div id="bankModal" class="modal">
+    <!-- World Map Modal -->
+    <div id="mapModal" class="modal">
         <div class="window">
-            <h3 style="margin-top:0; color:#facc15;">Riverwood Village Bank</h3>
-            <p style="font-size:12px; color:#aaa;">Bank vaults are 100% protected upon death. Gold in your pack risks a 15% drop on death.</p>
-            <button class="btn" onclick="bankAction('deposit', 25)">Deposit 25g into Vault</button>
-            <button class="btn" onclick="bankAction('withdraw', 25)">Withdraw 25g to Backpack</button>
-            <hr style="border-color:#555;">
-            <p style="font-size:12px; color:#f87171;">Village Credit & Loans:</p>
-            <button class="btn" onclick="bankAction('loan')">Take 100g Village Loan (Repay 120g)</button>
-            <button class="btn" onclick="bankAction('repay')">Repay Active Village Debt</button>
-            <button class="btn" style="margin-top:10px; background:#444;" onclick="toggleModal('bankModal')">Exit Bank</button>
+            <h3 style="margin-top:0; color:#facc15;">Skyrim Open-World Map</h3>
+            <div style="font-size:12px; line-height:1.8; color:#cbd5e1;">
+                🌲 <b>Riverwood Village:</b> (X: 0, Z: 0) — Starter cabins, training yard.<br>
+                ⛰️ <b>Frostcrag Village:</b> (X: 140, Z: -140) — Snowy fortress, high peaks.<br>
+                🌑 <b>Duskwood Village:</b> (X: -140, Z: 120) — Dark pines, werewolf shrine.<br>
+                ⛏️ <b>Canyon Ravine & Caves:</b> (X: 45, Z: -45) — Deep underground cavern.
+            </div>
+            <button class="btn" style="margin-top:15px;" onclick="toggleModal('mapModal')">Close Map</button>
         </div>
     </div>
 
@@ -147,14 +110,22 @@
     <div id="settingsModal" class="modal">
         <div class="window">
             <h3 style="margin-top:0; color:#facc15;">Settings</h3>
+            <label style="display:flex; align-items:center; gap:8px; margin:8px 0;">
+                <input type="checkbox" id="checkAutoJump" checked onchange="updateAutoJump(this.checked)"> Enable Auto-Jump (1-Block Steps)
+            </label>
             <label>Mouse Look Sensitivity:</label>
             <input type="range" id="mouseSens" min="1" max="10" value="4" style="width:100%; margin:8px 0 14px 0;">
-            <div style="font-size:12px; color:#aaa; margin-bottom:8px;">PC Controls:<br>• [WASD] Move | [F] Attack<br>• [Space] Parry (Hold to Guard)<br>• [Shift] Parkour (Run=Slide | Air=Dive | Stand=Backstep)<br>• [E] Weapon Technique | [1] Skill | [2] Ultimate<br>• [X] Toggle 2-Hand Stance (+20% Dmg)</div>
+            <div style="font-size:12px; color:#aaa; margin-bottom:8px;">
+                Movement Rules:<br>
+                • 1 Block = 1 Meter | Eye Height = 1.62 Blocks<br>
+                • Jump clears 1 Block. <b>Cannot climb 2-block-high walls!</b><br>
+                • Falling > 3 Blocks inflicts Fall Damage!
+            </div>
             <button class="btn" onclick="toggleModal('settingsModal')">Close</button>
         </div>
     </div>
 
-    <!-- Mobile Touch Cluster -->
+    <!-- Mobile Controls -->
     <div id="mobileControls">
         <div id="dpad">
             <div class="t-btn" id="btnUp">▲</div>
@@ -162,11 +133,7 @@
             <div class="t-btn" id="btnDown">▼</div>
             <div class="t-btn" id="btnRight">▶</div>
         </div>
-        <div id="skillCluster">
-            <div class="s-btn" id="btnSkill">SKILL</div>
-            <div class="s-btn" id="btnUlt" style="border-color:#ef4444; color:#ef4444;">ULT</div>
-            <div class="s-btn" id="btn2H" style="border-color:#38bdf8; color:#38bdf8;">2-HAND</div>
-        </div>
+        <div id="btnJumpMobile">JUMP</div>
         <div id="diamondCluster">
             <div class="c-btn" id="btnTech"><span>TECH</span></div>
             <div class="c-btn" id="btnParry">PARRY</div>
@@ -179,17 +146,21 @@
 
     <script>
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || ('ontouchstart' in window);
-        if (isMobile) {
-            document.getElementById('mobileControls').style.display = 'block';
-        } else {
-            document.getElementById('crosshair').style.display = 'block';
+        if (isMobile) document.getElementById('mobileControls').style.display = 'block';
+        else document.getElementById('crosshair').style.display = 'block';
+
+        let autoJumpEnabled = true;
+        function updateAutoJump(val) {
+            autoJumpEnabled = val;
+            document.getElementById('autoJumpPill').innerText = `Auto-Jump: ${autoJumpEnabled ? 'ON' : 'OFF'}`;
+            document.getElementById('checkAutoJump').checked = autoJumpEnabled;
         }
+        function toggleAutoJump() { updateAutoJump(!autoJumpEnabled); }
 
         const socket = io();
         let myId = null, myData = null;
-        const playerMeshes = {};
+        let currentVillage = "Riverwood";
 
-        // Web Audio Synthesizer (Zero asset dependencies)
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playTone(freq, type, dur) {
             try {
@@ -215,264 +186,195 @@
             m.style.display = m.style.display === 'flex' ? 'none' : 'flex';
         }
 
-        // Three.js Scene Setup
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x7dd3fc);
-        scene.fog = new THREE.FogExp2(0x7dd3fc, 0.015);
+        // 16x16 Pixel Texture Generator
+        function createPixelTexture(base, noise, pattern = 'none') {
+            const canvas = document.createElement('canvas');
+            canvas.width = 16; canvas.height = 16;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = base; ctx.fillRect(0, 0, 16, 16);
+            for (let x = 0; x < 16; x++) {
+                for (let y = 0; y < 16; y++) {
+                    if (Math.random() > 0.6) {
+                        ctx.fillStyle = noise; ctx.fillRect(x, y, 1, 1);
+                    }
+                }
+            }
+            if (pattern === 'grass_side') {
+                ctx.fillStyle = '#4d7c0f';
+                for (let x = 0; x < 16; x++) {
+                    ctx.fillRect(x, 0, 1, 2 + Math.floor(Math.sin(x) * 1.5 + Math.random() * 2));
+                }
+            } else if (pattern === 'planks') {
+                ctx.fillStyle = '#451a03';
+                ctx.fillRect(0, 3, 16, 1); ctx.fillRect(0, 7, 16, 1); ctx.fillRect(0, 11, 16, 1); ctx.fillRect(0, 15, 16, 1);
+            }
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter;
+            return tex;
+        }
 
-        const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 500);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        const texGrassTop = createPixelTexture('#65a30d', '#4d7c0f');
+        const texGrassSide = createPixelTexture('#78350f', '#5c2b09', 'grass_side');
+        const texStone = createPixelTexture('#64748b', '#475569');
+        const texSnow = createPixelTexture('#f8fafc', '#cbd5e1');
+        const texWood = createPixelTexture('#78350f', '#451a03');
+        const texPlanks = createPixelTexture('#92400e', '#78350f', 'planks');
+        const texIronOre = createPixelTexture('#64748b', '#d97706');
+
+        const matGrass = [
+            new THREE.MeshLambertMaterial({ map: texGrassSide }),
+            new THREE.MeshLambertMaterial({ map: texGrassSide }),
+            new THREE.MeshLambertMaterial({ map: texGrassTop }),
+            new THREE.MeshLambertMaterial({ map: texGrassSide }),
+            new THREE.MeshLambertMaterial({ map: texGrassSide }),
+            new THREE.MeshLambertMaterial({ map: texGrassSide })
+        ];
+
+        // Three.js Scene Setup (Near clipping 0.05 prevents see-through gaps)
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x38bdf8);
+        scene.fog = new THREE.FogExp2(0x38bdf8, 0.008);
+
+        const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.05, 500);
+        const renderer = new THREE.WebGLRenderer({ antialias: false });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.getElementById('canvas3d').appendChild(renderer.domElement);
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.65); scene.add(ambientLight);
-        const sunLight = new THREE.DirectionalLight(0xfffbeb, 0.85); sunLight.position.set(40, 80, 40); scene.add(sunLight);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.75); scene.add(ambientLight);
+        const sunLight = new THREE.DirectionalLight(0xfffbeb, 0.85); sunLight.position.set(60, 140, 60); scene.add(sunLight);
 
-        // Ground Terrain
-        const ground = new THREE.Mesh(new THREE.PlaneGeometry(250, 250), new THREE.MeshLambertMaterial({ color: 0x3f6212 }));
-        ground.rotation.x = -Math.PI / 2;
-        scene.add(ground);
+        // Procedural Voxel Heights & Minecraft Caves
+        function getVoxelBlockHeight(x, z) {
+            // Ravine Cave System (x: 40 to 55, z: -40 to -55)
+            if (x > 38 && x < 58 && z < -36 && z > -58) {
+                return -4; // Drops deep into stone ravine cavern
+            }
+            // Frostcrag Mountain Peak (x: 140, z: -140)
+            let mtnDist = Math.hypot(x - 140, z + 140);
+            if (mtnDist < 60) {
+                return Math.floor((60 - mtnDist) * 0.4) * 2;
+            }
+            // Duskwood Swamp (x: -140, z: 120)
+            let swampDist = Math.hypot(x + 140, z - 120);
+            if (swampDist < 50) return 0;
 
-        // Optional Training Arena (Fenced yard with posts right near spawn)
-        const arena = new THREE.Group();
-        const fenceMat = new THREE.MeshLambertMaterial({ color: 0x78350f });
-        for (let i = -8; i <= 8; i += 4) {
-            const post1 = new THREE.Mesh(new THREE.BoxGeometry(0.4, 2, 0.4), fenceMat); post1.position.set(i, 1, -16);
-            const post2 = new THREE.Mesh(new THREE.BoxGeometry(0.4, 2, 0.4), fenceMat); post2.position.set(i, 1, -6);
-            arena.add(post1, post2);
+            // Discrete Minecraft 1-block steps
+            let raw = (Math.sin(x * 0.04) * 2) + (Math.cos(z * 0.04) * 2);
+            return Math.floor(raw);
         }
-        scene.add(arena);
 
-        // Training Dummy Mesh (Positioned in Training Yard at x:0, z:-12)
-        const dummyMesh = new THREE.Group();
-        const dummyBody = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.8, 0.5), new THREE.MeshLambertMaterial({ color: 0xa16207 }));
-        dummyBody.position.y = 0.9; dummyMesh.add(dummyBody);
-        const dummyRing = new THREE.Mesh(new THREE.RingGeometry(1.2, 1.6, 24), new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }));
-        dummyRing.rotation.x = Math.PI / 2; dummyRing.position.y = 0.05; dummyMesh.add(dummyRing);
-        dummyMesh.position.set(0, 0, -12);
-        scene.add(dummyMesh);
+        // Solid Voxel Terrain Columns
+        const worldGroup = new THREE.Group();
+        for (let x = -70; x <= 70; x += 2) {
+            for (let z = -70; z <= 70; z += 2) {
+                const y = getVoxelBlockHeight(x, z);
+                let mat = matGrass;
+                if (y < 0) mat = new THREE.MeshLambertMaterial({ map: texStone });
+                else if (y >= 10) mat = new THREE.MeshLambertMaterial({ map: texSnow });
 
-        // Boss Mesh (Positioned at x:45, z:-45)
-        const bossMesh = new THREE.Group();
-        const bBody = new THREE.Mesh(new THREE.BoxGeometry(3, 4.5, 2.5), new THREE.MeshLambertMaterial({ color: 0x1f2937 }));
-        bBody.position.y = 2.25; bossMesh.add(bBody);
-        const bRing = new THREE.Mesh(new THREE.RingGeometry(2.5, 3.2, 32), new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent:true, opacity:0 }));
-        bRing.rotation.x = Math.PI / 2; bRing.position.y = 0.05; bossMesh.add(bRing);
-        bossMesh.position.set(45, 0, -45);
-        scene.add(bossMesh);
-
-        // Bank Vault Mesh (x: -12, z: 6)
-        const bankBuilding = new THREE.Mesh(new THREE.BoxGeometry(5, 4, 5), new THREE.MeshLambertMaterial({ color: 0x475569 }));
-        bankBuilding.position.set(-12, 2, 6); scene.add(bankBuilding);
-
-        // Procedural Voxel Player Mesh
-        function createVoxelPlayer(p) {
-            const g = new THREE.Group();
-            let bodyColor = p.characterClass === 'Warrior' ? 0x3b82f6 : (p.characterClass === 'Assassin' ? 0x18181b : (p.characterClass === 'Mage' ? 0x7e22ce : 0x047857));
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), new THREE.MeshLambertMaterial({ color: 0xfde047 }));
-            head.position.y = 1.6; g.add(head);
-            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.9, 0.4), new THREE.MeshLambertMaterial({ color: bodyColor }));
-            torso.position.y = 0.85; g.add(torso);
-
-            // Off-hand Support visual (Shield or Dagger)
-            const offhand = new THREE.Mesh(
-                p.offHand === 'Shield' ? new THREE.BoxGeometry(0.1, 0.7, 0.6) : new THREE.BoxGeometry(0.08, 0.5, 0.08),
-                new THREE.MeshLambertMaterial({ color: p.offHand === 'Shield' ? 0xd97706 : 0x94a3b8 })
-            );
-            offhand.position.set(-0.55, 0.85, 0.2);
-            g.add(offhand);
-
-            g.position.set(p.x, 0, p.z);
-            scene.add(g);
-            return g;
+                const colHeight = Math.max(2, y + 8);
+                const block = new THREE.Mesh(new THREE.BoxGeometry(2, colHeight, 2), mat);
+                block.position.set(x, y - (colHeight / 2) + 1, z);
+                worldGroup.add(block);
+            }
         }
+        scene.add(worldGroup);
+
+        // Village Cabins
+        function createVillageCabin(x, z) {
+            const cabin = new THREE.Group();
+            const y = getVoxelBlockHeight(x, z);
+            const walls = new THREE.Mesh(new THREE.BoxGeometry(6, 4, 6), new THREE.MeshLambertMaterial({ map: texPlanks }));
+            walls.position.y = 2; cabin.add(walls);
+            const roof = new THREE.Mesh(new THREE.BoxGeometry(7, 1.2, 7), new THREE.MeshLambertMaterial({ map: texWood }));
+            roof.position.y = 4.6; cabin.add(roof);
+            const torch = new THREE.PointLight(0xf97316, 2, 15); torch.position.set(0, 2.5, 3.5); cabin.add(torch);
+            cabin.position.set(x, y, z);
+            scene.add(cabin);
+        }
+
+        createVillageCabin(0, -6);
+        createVillageCabin(140, -140);
+        createVillageCabin(-140, 120);
+
+        // Ravine Torches & Ore
+        const caveLight = new THREE.PointLight(0xf97316, 3, 25); caveLight.position.set(48, -2, -48); scene.add(caveLight);
+        const oreBlock = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshLambertMaterial({ map: texIronOre }));
+        oreBlock.position.set(48, -3, -48); scene.add(oreBlock);
 
         // Network Setup
         socket.on('init', (data) => {
             myId = data.id; myData = data.players[myId];
-            for (let id in data.players) playerMeshes[id] = createVoxelPlayer(data.players[id]);
-            socket.emit('joinGame', { characterClass: 'Warrior', subclass: 'Medium', trait: 'Human' });
+            socket.emit('joinGame', { characterClass: 'Warrior', subclass: 'Medium' });
             updateHUD();
         });
 
-        socket.on('newPlayer', (p) => { playerMeshes[p.id] = createVoxelPlayer(p); });
-        socket.on('playerMoved', (p) => { if (playerMeshes[p.id]) playerMeshes[p.id].position.set(p.x, 0, p.z); });
         socket.on('playerUpdated', (p) => { if (p.id === myId) { myData = p; updateHUD(); } });
-        socket.on('playerLeft', (id) => { if (playerMeshes[id]) { scene.remove(playerMeshes[id]); delete playerMeshes[id]; } });
         socket.on('feedback', (msg) => showToast(msg));
 
-        // Telegraph Listeners
-        let activeDummyTelegraph = null;
+        // Telegraph & Dummy
+        let activeTeleg = null;
         socket.on('dummyTelegraph', ({ type, duration }) => {
-            activeDummyTelegraph = type;
+            activeTeleg = type;
             const banner = document.getElementById('telegraphBanner');
             banner.style.display = 'block';
-
-            if (type === 'white') {
-                banner.innerText = "⚡ PALE BLUE: PARRY OR BLOCK! [Space]";
-                banner.style.background = "#0284c7"; dummyRing.material.color.set(0x38bdf8);
-                playTone(2000, 'sine', 0.2);
-            } else if (type === 'red') {
-                banner.innerText = "💀 CRIMSON RED: WEAPON TECHNIQUE! [E]";
-                banner.style.background = "#b91c1c"; dummyRing.material.color.set(0xef4444);
-                playTone(3200, 'triangle', 0.25);
-            } else if (type === 'violet') {
-                banner.innerText = "🌪️ PURPLE: LOW SWEEP! DIVE OVER IT! [Jump+Move]";
-                banner.style.background = "#7e22ce"; dummyRing.material.color.set(0xa855f7);
-                playTone(180, 'sawtooth', 0.3);
-            }
-
-            setTimeout(() => { banner.style.display = 'none'; activeDummyTelegraph = null; }, duration);
-        });
-
-        socket.on('bossTelegraph', ({ type, duration }) => {
-            document.getElementById('bossHud').style.display = 'block';
-            bRing.material.opacity = 0.8;
-            if (type === 'white') bRing.material.color.set(0x38bdf8);
-            if (type === 'red') bRing.material.color.set(0xef4444);
-            if (type === 'violet') bRing.material.color.set(0xa855f7);
-            setTimeout(() => { bRing.material.opacity = 0; }, duration);
-        });
-
-        socket.on('bossThresholdEvent', ({ threshold }) => {
-            document.getElementById('bossPhase').innerText = 5 - threshold;
-            showToast(`⚠️ BOSS THRESHOLD BROKEN! PHASE ${5 - threshold} ENRAGE!`);
-        });
-
-        socket.on('bossUpdated', (b) => {
-            document.getElementById('bossHpFill').style.width = (b.hp / b.maxHp * 100) + '%';
-        });
-
-        // Day/Night & Full Moon
-        socket.on('timeSync', ({ isDay, isFullMoon }) => {
-            if (isDay) {
-                scene.background.set(0x7dd3fc); scene.fog.color.set(0x7dd3fc);
-                document.getElementById('hudWorld').innerText = "Time: Day ☀️";
-            } else {
-                scene.background.set(0x020617); scene.fog.color.set(0x020617);
-                document.getElementById('hudWorld').innerText = isFullMoon ? "Time: FULL MOON 🌕 (Werewolves Feral!)" : "Time: Night 🌙";
-            }
+            if (type === 'white') { banner.innerText = "⚡ PALE BLUE: PARRY! [C]"; banner.style.background = "#0284c7"; }
+            else if (type === 'red') { banner.innerText = "💀 CRIMSON RED: TECHNIQUE! [E]"; banner.style.background = "#b91c1c"; }
+            else if (type === 'violet') { banner.innerText = "🌪️ PURPLE: DIVE OVER IT! [Jump+Move]"; banner.style.background = "#7e22ce"; }
+            setTimeout(() => { banner.style.display = 'none'; activeTeleg = null; }, duration);
         });
 
         function updateHUD() {
             if (!myData) return;
             document.getElementById('hudName').innerText = `${myData.characterClass} (Lv.${myData.level})`;
-            document.getElementById('hudSpec').innerText = `${myData.subclass} Spec | ${myData.offHand} Off-Hand`;
             document.getElementById('hpFill').style.width = (myData.hp / myData.maxHp * 100) + '%';
             document.getElementById('staFill').style.width = myData.stamina + '%';
-            document.getElementById('hudGold').innerText = `Carried: ${myData.carriedGold}g | Bank: ${myData.bankGold}g`;
-            document.getElementById('hudDebt').innerText = `Village Debt: ${myData.villageDebt}g`;
+            document.getElementById('hudGold').innerText = `Carried: ${myData.carriedGold}g`;
+            const b = (myData.banks && myData.banks[currentVillage]) ? myData.banks[currentVillage] : 0;
+            const d = (myData.debts && myData.debts[currentVillage]) ? myData.debts[currentVillage] : 0;
+            document.getElementById('hudBank').innerText = `${currentVillage} Bank: ${b}g | Debt: ${d}g`;
+            document.getElementById('bankTitle').innerText = `${currentVillage} Village Bank`;
         }
 
-        function bankAction(action, amount=0) { socket.emit('bankAction', { action, amount }); }
-
-        function applyCharSetup() {
-            const characterClass = document.getElementById('selClass').value;
-            const subclass = document.getElementById('selSpec').value;
-            const offHand = document.getElementById('selOffhand').value;
-            socket.emit('joinGame', { characterClass, subclass, offHand });
-            toggleModal('charModal');
+        function bankAction(act, amt=0) {
+            socket.emit('bankAction', { village: currentVillage, action: act, amount: amt });
         }
 
         // ==========================================
-        // PARKOUR MOBILITY & COMBAT STATE MACHINE
+        // MINECRAFT JUMP, EYE HEIGHT & FALL DAMAGE
         // ==========================================
-        let isMoving = false, isAirborne = false;
-        let isSliding = false, isDiving = false, isGuarding = false;
-        let counterHoldTimer = 0;
+        let velocityY = 0;
+        let isGrounded = true;
+        let highestYInAir = 0;
+        const EYE_HEIGHT = 1.62;
+
+        function triggerJump() {
+            if (isGrounded) {
+                velocityY = 0.22; // Jump clears 1.2 blocks. CANNOT clear 2 blocks!
+                isGrounded = false;
+                highestYInAir = camera.position.y;
+                playTone(380, 'sine', 0.1);
+            }
+        }
 
         function triggerParkour() {
-            if (isAirborne) {
-                // IN AIR = DIVE (Leaps horizontal, immune to purple ground sweeps)
-                isDiving = true;
-                showToast("Diving over ground hazards!");
-                playTone(300, 'triangle', 0.2);
-                camera.position.y += 0.8;
-                setTimeout(() => { isDiving = false; }, 500);
-
-                // Check violet dodge over dummy/boss
-                if (activeDummyTelegraph === 'violet') {
-                    socket.emit('defendSuccess', { type: 'Dive Dodge', target: 'dummy' });
-                }
-            } else if (isMoving) {
-                // RUNNING = SLIDE (Ducks low under high swings)
-                isSliding = true;
-                showToast("Sliding under high attacks!");
-                camera.position.y = 1.0; // Shrink hurtbox
-                setTimeout(() => { camera.position.y = 2.4; isSliding = false; }, 600);
+            if (!isGrounded) {
+                showToast("Diving over ground sweeps!");
+                playTone(320, 'triangle', 0.2);
+                camera.position.x -= Math.sin(camera.rotation.y) * 2;
+                camera.position.z -= Math.cos(camera.rotation.y) * 2;
             } else {
-                // STANDING STILL = BACK-DASH (Quick retreat)
-                showToast("Back-dash retreat!");
-                camera.position.x += Math.sin(camera.rotation.y) * 3;
-                camera.position.z += Math.cos(camera.rotation.y) * 3;
+                showToast("Back-dash!");
+                camera.position.x += Math.sin(camera.rotation.y) * 2.5;
+                camera.position.z += Math.cos(camera.rotation.y) * 2.5;
             }
         }
 
-        function triggerParry(isTap) {
-            if (isTap) {
-                // Tap = Parry Window (0.25s)
-                playTone(1800, 'sine', 0.15);
-                if (activeDummyTelegraph === 'white') {
-                    socket.emit('defendSuccess', { type: 'Parry', target: 'dummy' });
-                    showToast("Perfect Parry!");
-                }
-            } else {
-                // Hold = Guard
-                isGuarding = true;
-            }
-        }
+        function triggerAttack() { playTone(450, 'square', 0.1); showToast("Attack swung!"); }
+        function triggerParry() { playTone(1800, 'sine', 0.15); showToast("Parry stance!"); }
+        function triggerTechnique() { playTone(2800, 'square', 0.25); showToast("Weapon Technique!"); }
 
-        function triggerTechnique() {
-            playTone(2800, 'square', 0.25);
-            if (activeDummyTelegraph === 'red') {
-                socket.emit('defendSuccess', { type: 'Technique Counter', target: 'dummy' });
-                showToast("Weapon Technique Counter!");
-            }
-        }
-
-        function triggerAttack() {
-            playTone(450, 'square', 0.1);
-            // Check proximity to Dummy or Boss
-            const dDummy = Math.hypot(camera.position.x - dummyMesh.position.x, camera.position.z - dummyMesh.position.z);
-            if (dDummy < 5) socket.emit('defendSuccess', { type: 'Strike', target: 'dummy' });
-
-            const dBoss = Math.hypot(camera.position.x - bossMesh.position.x, camera.position.z - bossMesh.position.z);
-            if (dBoss < 8) socket.emit('attackEntity', { target: 'boss' });
-        }
-
-        // Specialization Skills
-        function triggerSkill() {
-            if (!myData) return;
-            if (myData.subclass === 'Counter') {
-                showToast("Counter Assassin: 15s Hold-Block Activated!");
-                activeDummyTelegraph = 'white'; // Free parry trigger
-                triggerParry(true);
-            } else if (myData.subclass === 'Hybrid') {
-                myData.stance = myData.stance === 'Blade' ? 'Shield' : 'Blade';
-                showToast(`Hybrid Stance Swapped: ${myData.stance} Stance!`);
-                updateHUD();
-            } else {
-                showToast(`Activated ${myData.subclass} Specialization Core Skill!`);
-            }
-        }
-
-        function triggerUltimate() {
-            showToast(`🔥 ULTIMATE UNLEASHED: ${myData.subclass} Supreme Power!`);
-            playTone(800, 'sawtooth', 0.6);
-            if (Math.hypot(camera.position.x - bossMesh.position.x, camera.position.z - bossMesh.position.z) < 15) {
-                socket.emit('attackEntity', { target: 'boss' });
-                socket.emit('attackEntity', { target: 'boss' });
-            }
-        }
-
-        function toggle2Hand() {
-            if (myData) {
-                myData.isTwoHanding = !myData.isTwoHanding;
-                showToast(myData.isTwoHanding ? "Two-Hand Grip: +20% Damage!" : "One-Hand Grip Restored.");
-            }
-        }
-
-        // PC Controls & Pointer Lock
+        // Controls
         if (!isMobile) {
             document.body.addEventListener('click', () => { document.body.requestPointerLock(); });
             document.addEventListener('mousemove', (e) => {
@@ -490,14 +392,11 @@
             if (k === 's') keys.s = true;
             if (k === 'a') keys.a = true;
             if (k === 'd') keys.d = true;
-            if (k === 'shift') triggerParkour();
-            if (k === ' ') triggerParry(true);
-            if (k === 'e') triggerTechnique();
+            if (e.key === ' ') triggerJump();
+            if (e.key === 'Shift') triggerParkour();
             if (k === 'f') triggerAttack();
-            if (k === '1') triggerSkill();
-            if (k === '2') triggerUltimate();
-            if (k === 'x') toggle2Hand();
-            if (k === 'b') toggleModal('bankModal');
+            if (k === 'c') triggerParry();
+            if (k === 'e') triggerTechnique();
         });
         window.addEventListener('keyup', (e) => {
             const k = e.key.toLowerCase();
@@ -507,35 +406,109 @@
             if (k === 'd') keys.d = false;
         });
 
-        // Touch Control Listeners
+        // Touch Listeners
         function bindTouch(id, k) {
             const el = document.getElementById(id);
             el.addEventListener('touchstart', (e) => { e.preventDefault(); keys[k] = true; });
             el.addEventListener('touchend', (e) => { e.preventDefault(); keys[k] = false; });
         }
         bindTouch('btnUp', 'w'); bindTouch('btnDown', 's'); bindTouch('btnLeft', 'a'); bindTouch('btnRight', 'd');
-
+        document.getElementById('btnJumpMobile').onclick = triggerJump;
         document.getElementById('btnAtk').onclick = triggerAttack;
-        document.getElementById('btnParry').onclick = () => triggerParry(true);
+        document.getElementById('btnParry').onclick = triggerParry;
         document.getElementById('btnTech').onclick = triggerTechnique;
         document.getElementById('btnDodge').onclick = triggerParkour;
-        document.getElementById('btnSkill').onclick = triggerSkill;
-        document.getElementById('btnUlt').onclick = triggerUltimate;
-        document.getElementById('btn2H').onclick = toggle2Hand;
 
-        // Render & Physics Loop
-        camera.position.set(0, 2.4, 6);
+        // ==========================================
+        // GAME LOOP: COLLISION, JUMP & FALL DAMAGE
+        // ==========================================
+        camera.position.set(0, 3, 6);
+
         function animate() {
             requestAnimationFrame(animate);
 
-            isMoving = keys.w || keys.s || keys.a || keys.d;
-            if (keys.w) { camera.position.x -= Math.sin(camera.rotation.y) * 0.16; camera.position.z -= Math.cos(camera.rotation.y) * 0.16; }
-            if (keys.s) { camera.position.x += Math.sin(camera.rotation.y) * 0.12; camera.position.z += Math.cos(camera.rotation.y) * 0.12; }
-            if (keys.a) { camera.position.x -= Math.cos(camera.rotation.y) * 0.12; camera.position.z += Math.sin(camera.rotation.y) * 0.12; }
-            if (keys.d) { camera.position.x += Math.cos(camera.rotation.y) * 0.12; camera.position.z -= Math.sin(camera.rotation.y) * 0.12; }
+            // 1. Calculate intended movement
+            let dx = 0, dz = 0;
+            const speed = 0.15;
+            if (keys.w) { dx -= Math.sin(camera.rotation.y) * speed; dz -= Math.cos(camera.rotation.y) * speed; }
+            if (keys.s) { dx += Math.sin(camera.rotation.y) * speed * 0.7; dz += Math.cos(camera.rotation.y) * speed * 0.7; }
+            if (keys.a) { dx -= Math.cos(camera.rotation.y) * speed * 0.7; dz += Math.sin(camera.rotation.y) * speed * 0.7; }
+            if (keys.d) { dx += Math.cos(camera.rotation.y) * speed * 0.7; dz -= Math.sin(camera.rotation.y) * speed * 0.7; }
 
-            if (isMoving) {
-                socket.emit('move', { x: camera.position.x, z: camera.position.z, rotation: camera.rotation.y });
+            // 2. Block Height Collision Detection
+            const targetX = camera.position.x + dx;
+            const targetZ = camera.position.z + dz;
+            const currentBlockH = getVoxelBlockHeight(camera.position.x, camera.position.z);
+            const targetBlockH = getVoxelBlockHeight(targetX, targetZ);
+            const stepDiff = targetBlockH - currentBlockH;
+
+            // CANNOT go up more than 1 block! Cliffs of 2+ blocks are solid walls!
+            if (stepDiff <= 1.0) {
+                if (stepDiff > 0.4) {
+                    // 1-Block Step
+                    if (autoJumpEnabled) {
+                        camera.position.x = targetX;
+                        camera.position.z = targetZ;
+                    } else if (!isGrounded) {
+                        camera.position.x = targetX;
+                        camera.position.z = targetZ;
+                    }
+                } else {
+                    // Flat or downhill: move freely
+                    camera.position.x = targetX;
+                    camera.position.z = targetZ;
+                }
+            }
+
+            // 3. Gravity & Vertical Physics
+            camera.position.y += velocityY;
+            velocityY -= 0.014; // Gravity
+
+            if (!isGrounded && camera.position.y > highestYInAir) {
+                highestYInAir = camera.position.y;
+            }
+
+            const groundY = getVoxelBlockHeight(camera.position.x, camera.position.z) + EYE_HEIGHT;
+            if (camera.position.y <= groundY) {
+                // Landing Check: Fall Damage
+                if (!isGrounded) {
+                    const fallBlocks = Math.floor(highestYInAir - groundY);
+                    if (fallBlocks > 3) {
+                        const fallDmg = (fallBlocks - 3) * 12;
+                        socket.emit('takeDamage', { amount: fallDmg, reason: `Fall Damage (${fallBlocks} blocks)` });
+                        playTone(150, 'sawtooth', 0.25);
+                        const flash = document.getElementById('damageFlash');
+                        flash.style.display = 'block';
+                        setTimeout(() => { flash.style.display = 'none'; }, 200);
+                    }
+                }
+                camera.position.y = groundY;
+                velocityY = 0;
+                isGrounded = true;
+            } else {
+                isGrounded = false;
+            }
+
+            // 4. Village Region Detection
+            const dRiv = Math.hypot(camera.position.x - 0, camera.position.z - 0);
+            const dFrost = Math.hypot(camera.position.x - 140, camera.position.z + 140);
+            const dDusk = Math.hypot(camera.position.x + 140, camera.position.z - 120);
+
+            let newVillage = "Wilderness";
+            if (dRiv < 35) newVillage = "Riverwood";
+            else if (dFrost < 45) newVillage = "Frostcrag";
+            else if (dDusk < 45) newVillage = "Duskwood";
+
+            if (newVillage !== currentVillage) {
+                currentVillage = newVillage;
+                document.getElementById('hudLocation').innerText = `Region: ${currentVillage}`;
+                updateHUD();
+                showToast(`Entered ${currentVillage}!`);
+            }
+
+            // 5. Network Sync
+            if (dx !== 0 || dz !== 0 || !isGrounded) {
+                socket.emit('move', { x: camera.position.x, y: camera.position.y, z: camera.position.z, rotation: camera.rotation.y });
             }
 
             renderer.render(scene, camera);
