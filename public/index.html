@@ -5,43 +5,120 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="manifest" href="/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Open-World Voxel RPG</title>
+    <title>Minecraft Action RPG</title>
     <style>
         * { touch-action: manipulation; user-select: none; box-sizing: border-box; }
-        body { margin: 0; overflow: hidden; background: #000; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: white; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Minecraft', monospace, sans-serif; color: white; }
         #canvas3d { width: 100vw; height: 100vh; display: block; }
         #crosshair { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 10px; height: 10px; border: 2px solid rgba(255,255,255,0.85); border-radius: 50%; pointer-events: none; z-index: 5; }
 
-        /* Damage Screen Flash */
         #damageFlash { display: none; position: fixed; inset: 0; background: rgba(220, 38, 38, 0.45); pointer-events: none; z-index: 50; }
 
+        /* =========================================
+           MINECRAFT JAVA GUI STYLES (BUTTONS & MENUS)
+           ========================================= */
+        .mc-btn {
+            background: #737373;
+            border: 2px solid;
+            border-color: #ffffff #000000 #000000 #ffffff;
+            color: #e0e0e0;
+            font-size: 15px;
+            font-weight: bold;
+            padding: 8px 12px;
+            width: 100%;
+            cursor: pointer;
+            text-shadow: 2px 2px #262626;
+            box-shadow: inset -2px -2px #555555, inset 2px 2px #aaaaaa;
+            margin: 4px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .mc-btn:hover {
+            background: #8b8b8b;
+            border-color: #ffffff #000000 #000000 #ffffff;
+            color: #ffffa0;
+        }
+        .mc-btn:active {
+            border-color: #000000 #ffffff #ffffff #000000;
+            box-shadow: inset 2px 2px #333333;
+        }
+
+        /* Fullscreen Menu Screens (Dirt Background) */
+        .mc-screen {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.85) 100%), #452b14;
+            background-size: auto, 64px 64px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+        }
+
+        /* Minecraft Java Title Logo */
+        .mc-title {
+            font-size: 42px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            color: #e2e8f0;
+            text-shadow: 4px 4px #0f172a, -2px -2px #0f172a, 2px -2px #0f172a, -2px 2px #0f172a;
+            position: relative;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .mc-splash {
+            position: absolute;
+            right: -30px;
+            bottom: -15px;
+            color: #facc15;
+            font-size: 14px;
+            font-weight: bold;
+            transform: rotate(-20deg);
+            animation: splashPulse 0.4s infinite alternate;
+            text-shadow: 2px 2px #713f12;
+            white-space: nowrap;
+        }
+        @keyframes splashPulse {
+            from { transform: rotate(-20deg) scale(1); }
+            to { transform: rotate(-20deg) scale(1.1); }
+        }
+
+        /* Menu Window Panels */
+        .mc-panel {
+            width: 90%;
+            max-width: 420px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .mc-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            width: 100%;
+        }
+
         /* HUD */
-        #hud { position: fixed; top: 15px; left: 15px; background: rgba(12,12,18,0.9); padding: 12px; border-radius: 6px; border: 2px solid #854d0e; z-index: 10; font-size: 13px; min-width: 220px; pointer-events: none; }
-        .bar { width: 100%; height: 8px; background: #222; margin: 3px 0 6px 0; border: 1px solid #555; border-radius: 2px; }
-        #hpFill { width: 100%; height: 100%; background: #dc2626; transition: width 0.15s; }
+        #hud { display: none; position: fixed; top: 15px; left: 15px; background: rgba(12,12,18,0.9); padding: 12px; border-radius: 4px; border: 2px solid #854d0e; z-index: 10; font-size: 13px; min-width: 210px; pointer-events: none; }
+        .bar { width: 100%; height: 8px; background: #222; margin: 3px 0 6px 0; border: 1px solid #555; }
+        #hpFill { width: 100%; height: 100%; background: #dc2626; }
         #staFill { width: 100%; height: 100%; background: #16a34a; }
 
-        #telegraphBanner { display: none; position: fixed; top: 70px; left: 50%; transform: translateX(-50%); padding: 10px 24px; border-radius: 8px; font-weight: bold; font-size: 15px; z-index: 20; text-transform: uppercase; letter-spacing: 1px; }
+        /* Minimap */
+        #minimapContainer { display: none; position: fixed; top: 15px; right: 15px; width: 120px; height: 120px; border-radius: 50%; border: 3px solid #ca8a04; background: rgba(0,0,0,0.85); overflow: hidden; z-index: 20; }
+        #minimapCanvas { width: 100%; height: 100%; }
+
         #toast { position: fixed; bottom: 85px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); padding: 8px 16px; border: 1px solid #eab308; display: none; z-index: 30; font-size: 13px; border-radius: 4px; text-align: center; }
 
-        /* Modals */
-        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 100; align-items: center; justify-content: center; }
-        .window { background: #18181b; border: 2px solid #ca8a04; padding: 22px; border-radius: 8px; width: 90%; max-width: 440px; max-height: 85vh; overflow-y: auto; }
-        button.btn { background: #27272a; border: 1px solid #71717a; color: white; padding: 8px; margin: 4px 0; width: 100%; cursor: pointer; border-radius: 4px; font-weight: bold; font-size: 14px; }
-        button.btn:hover { background: #3f3f46; border-color: #facc15; }
-
-        #topNav { position: fixed; top: 15px; right: 15px; display: flex; gap: 8px; z-index: 10; }
-        .nav-btn { background: rgba(0,0,0,0.75); border: 1px solid #854d0e; color: white; width: 38px; height: 38px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 17px; cursor: pointer; }
-
-        /* Mobile Controls */
+        /* Mobile Touch Controls */
         #mobileControls { display: none; position: fixed; inset: 0; pointer-events: none; z-index: 10; }
         #dpad { position: absolute; bottom: 25px; left: 20px; display: grid; grid-template-columns: 50px 50px 50px; grid-template-rows: 50px 50px; gap: 6px; pointer-events: auto; }
         .t-btn { background: rgba(255,255,255,0.18); border: 2px solid rgba(255,255,255,0.4); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: white; }
         #btnUp { grid-column: 2; grid-row: 1; } #btnLeft { grid-column: 1; grid-row: 2; } #btnDown { grid-column: 2; grid-row: 2; } #btnRight { grid-column: 3; grid-row: 2; }
-
         #btnJumpMobile { position: absolute; bottom: 95px; left: 80px; width: 55px; height: 55px; border-radius: 50%; background: #0284c7; border: 2px solid #fff; font-weight: bold; font-size: 12px; display: flex; align-items: center; justify-content: center; color: white; pointer-events: auto; }
 
-        /* Diamond Cluster */
         #diamondCluster { position: absolute; bottom: 25px; right: 20px; width: 140px; height: 140px; pointer-events: auto; }
         .c-btn { position: absolute; width: 48px; height: 48px; border-radius: 50%; border: 2px solid #fff; font-weight: bold; font-size: 11px; display: flex; align-items: center; justify-content: center; color: white; }
         #btnTech { top: 0; left: 46px; background: #7e22ce; border-radius: 8px; transform: rotate(45deg); }
@@ -50,7 +127,8 @@
         #btnDodge { top: 46px; right: 0; background: #d97706; }
         #btnAtk { bottom: 0; left: 46px; background: #b91c1c; }
 
-        #autoJumpPill { position: fixed; top: 15px; left: 245px; background: rgba(0,0,0,0.85); border: 1px solid #777; padding: 6px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; z-index: 10; }
+        /* Mobile Look Touch Area (Right screen half) */
+        #touchLookArea { display: none; position: fixed; top: 0; right: 0; width: 50vw; height: 60vh; z-index: 5; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
@@ -60,72 +138,89 @@
     <div id="crosshair"></div>
     <div id="damageFlash"></div>
     <div id="toast"></div>
+    <div id="touchLookArea"></div>
 
+    <!-- =========================================
+         1. MINECRAFT JAVA MAIN MENU
+         ========================================= -->
+    <div id="mainMenu" class="mc-screen">
+        <div class="mc-title">
+            MINECRAFT RPG
+            <div class="mc-splash">Also try Skyrim!</div>
+        </div>
+        <div class="mc-panel">
+            <button class="mc-btn" onclick="startGame()">Play Game</button>
+            <button class="mc-btn" onclick="openOptions()">Options...</button>
+            <button class="mc-btn" onclick="openCharSetup()">Character Loadout...</button>
+        </div>
+    </div>
+
+    <!-- =========================================
+         2. MINECRAFT OPTIONS SCREEN
+         ========================================= -->
+    <div id="optionsMenu" class="mc-screen" style="display:none;">
+        <h2 style="margin-top:0; color:#fff; text-shadow:2px 2px #000; margin-bottom:20px;">Options</h2>
+        <div class="mc-panel">
+            <div class="mc-grid">
+                <button class="mc-btn" id="btnFov" onclick="cycleFov()">FOV: Normal</button>
+                <button class="mc-btn" id="btnFog" onclick="cycleFog()">Render: 8 Chunks</button>
+                <button class="mc-btn" id="btnAutoJump" onclick="toggleAutoJump()">Auto-Jump: ON</button>
+                <button class="mc-btn" id="btnInvertMouse" onclick="toggleInvertMouse()">Invert Mouse: OFF</button>
+            </div>
+            <div style="margin: 10px 0;">
+                <label style="font-size:12px; color:#ddd; text-shadow:1px 1px #000;">Mouse Sensitivity: <span id="sensVal">100%</span></label>
+                <input type="range" id="mouseSens" min="1" max="10" value="4" oninput="updateSens(this.value)" style="width:100%; margin-top:4px;">
+            </div>
+            <button class="mc-btn" onclick="openControls()">Controls / Key Binds...</button>
+            <button class="mc-btn" style="margin-top:10px;" onclick="closeOptions()">Done</button>
+        </div>
+    </div>
+
+    <!-- =========================================
+         3. CONTROLS / KEY BINDS SCREEN
+         ========================================= -->
+    <div id="controlsMenu" class="mc-screen" style="display:none;">
+        <h2 style="margin-top:0; color:#fff; text-shadow:2px 2px #000; margin-bottom:15px;">Controls</h2>
+        <div class="mc-panel" style="font-size:13px; line-height:2.0;">
+            <div style="background:rgba(0,0,0,0.6); padding:12px; border:1px solid #555;">
+                • Walk: <b>[W] [A] [S] [D]</b><br>
+                • Jump: <b>[SPACE]</b> (Clears 1 Block)<br>
+                • Parkour / Dodge: <b>[LSHIFT]</b><br>
+                • Attack: <b>[F]</b> or Left Click<br>
+                • Parry / Guard: <b>[C]</b> or Right Click<br>
+                • Weapon Technique: <b>[E]</b><br>
+                • Look: <b>Mouse Move (Up/Down/Left/Right)</b>
+            </div>
+            <button class="mc-btn" style="margin-top:15px;" onclick="closeControls()">Done</button>
+        </div>
+    </div>
+
+    <!-- =========================================
+         4. IN-GAME PAUSE MENU (ESC)
+         ========================================= -->
+    <div id="pauseMenu" class="mc-screen" style="display:none; background:rgba(0,0,0,0.75);">
+        <h2 style="margin-top:0; color:#fff; text-shadow:2px 2px #000; margin-bottom:20px;">Game Paused</h2>
+        <div class="mc-panel">
+            <button class="mc-btn" onclick="resumeGame()">Back to Game</button>
+            <button class="mc-btn" onclick="openOptions(true)">Options...</button>
+            <button class="mc-btn" onclick="quitToTitle()">Save and Quit to Title</button>
+        </div>
+    </div>
+
+    <!-- In-Game HUD -->
     <div id="hud">
         <div id="hudName" style="font-weight:bold; color:#facc15;">Hero</div>
         <div id="hudLocation" style="color:#38bdf8; font-size:11px;">Region: Riverwood</div>
         <div>HP</div><div class="bar"><div id="hpFill"></div></div>
         <div>STAMINA</div><div class="bar"><div id="staFill"></div></div>
-        <div id="hudGold" style="color:#fde047; margin-top:4px;">Carried: 60g</div>
-        <div id="hudBank" style="color:#94a3b8; font-size:11px;">Local Bank: 100g | Debt: 0g</div>
+        <div id="hudGold" style="color:#fde047; margin-top:4px;">Carried: 50g</div>
     </div>
 
-    <div id="autoJumpPill" onclick="toggleAutoJump()">Auto-Jump: ON</div>
-    <div id="telegraphBanner"></div>
-
-    <div id="topNav">
-        <div class="nav-btn" onclick="toggleModal('bankModal')">🏦</div>
-        <div class="nav-btn" onclick="toggleModal('mapModal')">🗺️</div>
-        <div class="nav-btn" onclick="toggleModal('settingsModal')">⚙️</div>
+    <div id="minimapContainer">
+        <canvas id="minimapCanvas" width="120" height="120"></canvas>
     </div>
 
-    <!-- Regional Bank Modal -->
-    <div id="bankModal" class="modal">
-        <div class="window">
-            <h3 style="margin-top:0; color:#facc15;" id="bankTitle">Village Bank</h3>
-            <p style="font-size:12px; color:#aaa;">Bank vaults are completely safe from fall damage and death drops.</p>
-            <button class="btn" onclick="bankAction('deposit', 25)">Deposit 25g into Local Vault</button>
-            <button class="btn" onclick="bankAction('withdraw', 25)">Withdraw 25g to Backpack</button>
-            <button class="btn" onclick="bankAction('loan')">Take 100g Loan (Village Credit)</button>
-            <button class="btn" onclick="bankAction('repay')">Repay Local Village Debt</button>
-            <button class="btn" style="margin-top:10px; background:#444;" onclick="toggleModal('bankModal')">Close</button>
-        </div>
-    </div>
-
-    <!-- World Map Modal -->
-    <div id="mapModal" class="modal">
-        <div class="window">
-            <h3 style="margin-top:0; color:#facc15;">Skyrim Open-World Map</h3>
-            <div style="font-size:12px; line-height:1.8; color:#cbd5e1;">
-                🌲 <b>Riverwood Village:</b> (X: 0, Z: 0) — Starter cabins, training yard.<br>
-                ⛰️ <b>Frostcrag Village:</b> (X: 140, Z: -140) — Snowy fortress, high peaks.<br>
-                🌑 <b>Duskwood Village:</b> (X: -140, Z: 120) — Dark pines, werewolf shrine.<br>
-                ⛏️ <b>Canyon Ravine & Caves:</b> (X: 45, Z: -45) — Deep underground cavern.
-            </div>
-            <button class="btn" style="margin-top:15px;" onclick="toggleModal('mapModal')">Close Map</button>
-        </div>
-    </div>
-
-    <!-- Settings Modal -->
-    <div id="settingsModal" class="modal">
-        <div class="window">
-            <h3 style="margin-top:0; color:#facc15;">Settings</h3>
-            <label style="display:flex; align-items:center; gap:8px; margin:8px 0;">
-                <input type="checkbox" id="checkAutoJump" checked onchange="updateAutoJump(this.checked)"> Enable Auto-Jump (1-Block Steps)
-            </label>
-            <label>Mouse Look Sensitivity:</label>
-            <input type="range" id="mouseSens" min="1" max="10" value="4" style="width:100%; margin:8px 0 14px 0;">
-            <div style="font-size:12px; color:#aaa; margin-bottom:8px;">
-                Movement Rules:<br>
-                • 1 Block = 1 Meter | Eye Height = 1.62 Blocks<br>
-                • Jump clears 1 Block. <b>Cannot climb 2-block-high walls!</b><br>
-                • Falling > 3 Blocks inflicts Fall Damage!
-            </div>
-            <button class="btn" onclick="toggleModal('settingsModal')">Close</button>
-        </div>
-    </div>
-
-    <!-- Mobile Controls -->
+    <!-- Mobile Touch Cluster -->
     <div id="mobileControls">
         <div id="dpad">
             <div class="t-btn" id="btnUp">▲</div>
@@ -146,27 +241,43 @@
 
     <script>
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || ('ontouchstart' in window);
-        if (isMobile) document.getElementById('mobileControls').style.display = 'block';
-        else document.getElementById('crosshair').style.display = 'block';
-
-        let autoJumpEnabled = true;
-        function updateAutoJump(val) {
-            autoJumpEnabled = val;
-            document.getElementById('autoJumpPill').innerText = `Auto-Jump: ${autoJumpEnabled ? 'ON' : 'OFF'}`;
-            document.getElementById('checkAutoJump').checked = autoJumpEnabled;
+        if (isMobile) {
+            document.getElementById('touchLookArea').style.display = 'block';
         }
-        function toggleAutoJump() { updateAutoJump(!autoJumpEnabled); }
 
         const socket = io();
-        let myId = null, myData = null;
-        let currentVillage = "Riverwood";
+        let myId = null, myData = null, serverMobs = [];
+        let inGame = false, isPaused = false;
+
+        // Settings State
+        let autoJumpEnabled = true;
+        let invertMouse = false;
+        let mouseSensitivity = 0.0024;
+        let fovIndex = 0;
+        const fovValues = [70, 85, 100, 110];
+        const fovNames = ["Normal", "85", "100", "Quake Pro"];
+        let fogIndex = 1;
+        const fogDensities = [0.005, 0.008, 0.012];
+        const fogNames = ["12 Chunks", "8 Chunks", "4 Chunks"];
+
+        function playUiSound() {
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'square'; osc.frequency.value = 600;
+                gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.08);
+            } catch(e){}
+        }
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playTone(freq, type, dur) {
             try {
                 if (audioCtx.state === 'suspended') audioCtx.resume();
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
+                const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
                 osc.type = type; osc.frequency.value = freq;
                 gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + dur);
@@ -181,12 +292,108 @@
             setTimeout(() => { t.style.display = 'none'; }, 3000);
         }
 
-        function toggleModal(id) {
-            const m = document.getElementById(id);
-            m.style.display = m.style.display === 'flex' ? 'none' : 'flex';
+        // ==========================================
+        // MENU TRANSITIONS & SETTINGS CONTROLLERS
+        // ==========================================
+        function startGame() {
+            playUiSound();
+            document.getElementById('mainMenu').style.display = 'none';
+            document.getElementById('hud').style.display = 'block';
+            document.getElementById('minimapContainer').style.display = 'block';
+            if (isMobile) document.getElementById('mobileControls').style.display = 'block';
+            else {
+                document.getElementById('crosshair').style.display = 'block';
+                document.body.requestPointerLock();
+            }
+            inGame = true;
+            isPaused = false;
         }
 
-        // 16x16 Pixel Texture Generator
+        let cameFromPause = false;
+        function openOptions(fromPause = false) {
+            playUiSound();
+            cameFromPause = fromPause;
+            document.getElementById('mainMenu').style.display = 'none';
+            document.getElementById('pauseMenu').style.display = 'none';
+            document.getElementById('optionsMenu').style.display = 'flex';
+        }
+
+        function closeOptions() {
+            playUiSound();
+            document.getElementById('optionsMenu').style.display = 'none';
+            if (cameFromPause) {
+                document.getElementById('pauseMenu').style.display = 'flex';
+            } else {
+                document.getElementById('mainMenu').style.display = 'flex';
+            }
+        }
+
+        function openControls() {
+            playUiSound();
+            document.getElementById('optionsMenu').style.display = 'none';
+            document.getElementById('controlsMenu').style.display = 'flex';
+        }
+
+        function closeControls() {
+            playUiSound();
+            document.getElementById('controlsMenu').style.display = 'none';
+            document.getElementById('optionsMenu').style.display = 'flex';
+        }
+
+        function resumeGame() {
+            playUiSound();
+            document.getElementById('pauseMenu').style.display = 'none';
+            if (!isMobile) document.body.requestPointerLock();
+            isPaused = false;
+        }
+
+        function quitToTitle() {
+            playUiSound();
+            document.getElementById('pauseMenu').style.display = 'none';
+            document.getElementById('hud').style.display = 'none';
+            document.getElementById('minimapContainer').style.display = 'none';
+            document.getElementById('mobileControls').style.display = 'none';
+            document.getElementById('crosshair').style.display = 'none';
+            document.getElementById('mainMenu').style.display = 'flex';
+            inGame = false;
+            isPaused = false;
+        }
+
+        function toggleAutoJump() {
+            playUiSound();
+            autoJumpEnabled = !autoJumpEnabled;
+            document.getElementById('btnAutoJump').innerText = `Auto-Jump: ${autoJumpEnabled ? 'ON' : 'OFF'}`;
+        }
+
+        function toggleInvertMouse() {
+            playUiSound();
+            invertMouse = !invertMouse;
+            document.getElementById('btnInvertMouse').innerText = `Invert Mouse: ${invertMouse ? 'ON' : 'OFF'}`;
+        }
+
+        function updateSens(val) {
+            mouseSensitivity = val * 0.0006;
+            document.getElementById('sensVal').innerText = `${val * 25}%`;
+        }
+
+        function cycleFov() {
+            playUiSound();
+            fovIndex = (fovIndex + 1) % fovValues.length;
+            camera.fov = fovValues[fovIndex];
+            camera.updateProjectionMatrix();
+            document.getElementById('btnFov').innerText = `FOV: ${fovNames[fovIndex]}`;
+        }
+
+        function cycleFog() {
+            playUiSound();
+            fogIndex = (fogIndex + 1) % fogDensities.length;
+            scene.fog.density = fogDensities[fogIndex];
+            document.getElementById('btnFog').innerText = `Render: ${fogNames[fogIndex]}`;
+        }
+
+        // ==========================================
+        // 16x16 MINECRAFT PIXEL TEXTURES
+        // ==========================================
         function createPixelTexture(base, noise, pattern = 'none') {
             const canvas = document.createElement('canvas');
             canvas.width = 16; canvas.height = 16;
@@ -194,7 +401,7 @@
             ctx.fillStyle = base; ctx.fillRect(0, 0, 16, 16);
             for (let x = 0; x < 16; x++) {
                 for (let y = 0; y < 16; y++) {
-                    if (Math.random() > 0.6) {
+                    if (Math.random() > 0.58) {
                         ctx.fillStyle = noise; ctx.fillRect(x, y, 1, 1);
                     }
                 }
@@ -207,6 +414,9 @@
             } else if (pattern === 'planks') {
                 ctx.fillStyle = '#451a03';
                 ctx.fillRect(0, 3, 16, 1); ctx.fillRect(0, 7, 16, 1); ctx.fillRect(0, 11, 16, 1); ctx.fillRect(0, 15, 16, 1);
+            } else if (pattern === 'cobble') {
+                ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+                ctx.strokeRect(1, 1, 6, 5); ctx.strokeRect(8, 2, 6, 5); ctx.strokeRect(3, 8, 8, 5);
             }
             const tex = new THREE.CanvasTexture(canvas);
             tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter;
@@ -216,10 +426,9 @@
         const texGrassTop = createPixelTexture('#65a30d', '#4d7c0f');
         const texGrassSide = createPixelTexture('#78350f', '#5c2b09', 'grass_side');
         const texStone = createPixelTexture('#64748b', '#475569');
-        const texSnow = createPixelTexture('#f8fafc', '#cbd5e1');
-        const texWood = createPixelTexture('#78350f', '#451a03');
+        const texCobble = createPixelTexture('#64748b', '#334155', 'cobble');
         const texPlanks = createPixelTexture('#92400e', '#78350f', 'planks');
-        const texIronOre = createPixelTexture('#64748b', '#d97706');
+        const texWoodLog = createPixelTexture('#78350f', '#451a03');
 
         const matGrass = [
             new THREE.MeshLambertMaterial({ map: texGrassSide }),
@@ -230,12 +439,12 @@
             new THREE.MeshLambertMaterial({ map: texGrassSide })
         ];
 
-        // Three.js Scene Setup (Near clipping 0.05 prevents see-through gaps)
+        // Three.js Scene Setup
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x38bdf8);
         scene.fog = new THREE.FogExp2(0x38bdf8, 0.008);
 
-        const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.05, 500);
+        const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 500);
         const renderer = new THREE.WebGLRenderer({ antialias: false });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.getElementById('canvas3d').appendChild(renderer.domElement);
@@ -243,68 +452,63 @@
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.75); scene.add(ambientLight);
         const sunLight = new THREE.DirectionalLight(0xfffbeb, 0.85); sunLight.position.set(60, 140, 60); scene.add(sunLight);
 
-        // Procedural Voxel Heights & Minecraft Caves
-        function getVoxelBlockHeight(x, z) {
-            // Ravine Cave System (x: 40 to 55, z: -40 to -55)
-            if (x > 38 && x < 58 && z < -36 && z > -58) {
-                return -4; // Drops deep into stone ravine cavern
-            }
-            // Frostcrag Mountain Peak (x: 140, z: -140)
+        // Voxel Map Builder
+        const solidBlocks = new Map();
+        function setBlock(x, y, z, type, mat) {
+            solidBlocks.set(`${x},${y},${z}`, type);
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), mat);
+            mesh.position.set(x + 0.5, y + 0.5, z + 0.5);
+            scene.add(mesh);
+        }
+        function hasBlock(x, y, z) {
+            return solidBlocks.has(`${Math.floor(x)},${Math.floor(y)},${Math.floor(z)}`);
+        }
+
+        function getTerrainY(x, z) {
             let mtnDist = Math.hypot(x - 140, z + 140);
-            if (mtnDist < 60) {
-                return Math.floor((60 - mtnDist) * 0.4) * 2;
-            }
-            // Duskwood Swamp (x: -140, z: 120)
-            let swampDist = Math.hypot(x + 140, z - 120);
-            if (swampDist < 50) return 0;
-
-            // Discrete Minecraft 1-block steps
-            let raw = (Math.sin(x * 0.04) * 2) + (Math.cos(z * 0.04) * 2);
-            return Math.floor(raw);
+            if (mtnDist < 50) return Math.floor((50 - mtnDist) * 0.4);
+            return Math.floor((Math.sin(x * 0.05) + Math.cos(z * 0.05)) * 1.5) + 1;
         }
 
-        // Solid Voxel Terrain Columns
-        const worldGroup = new THREE.Group();
-        for (let x = -70; x <= 70; x += 2) {
-            for (let z = -70; z <= 70; z += 2) {
-                const y = getVoxelBlockHeight(x, z);
-                let mat = matGrass;
-                if (y < 0) mat = new THREE.MeshLambertMaterial({ map: texStone });
-                else if (y >= 10) mat = new THREE.MeshLambertMaterial({ map: texSnow });
-
-                const colHeight = Math.max(2, y + 8);
-                const block = new THREE.Mesh(new THREE.BoxGeometry(2, colHeight, 2), mat);
-                block.position.set(x, y - (colHeight / 2) + 1, z);
-                worldGroup.add(block);
+        function buildHouse(baseX, baseZ) {
+            const baseY = getTerrainY(baseX, baseZ);
+            for (let x = 0; x < 5; x++) {
+                for (let z = 0; z < 5; z++) {
+                    setBlock(baseX + x, baseY, baseZ + z, 'cobble', new THREE.MeshLambertMaterial({ map: texCobble }));
+                    for (let y = 1; y <= 3; y++) {
+                        if (x === 2 && z === 0 && y <= 2) continue; // Doorway
+                        const isCorner = (x === 0 || x === 4) && (z === 0 || z === 4);
+                        const mat = isCorner ? new THREE.MeshLambertMaterial({ map: texWoodLog }) : new THREE.MeshLambertMaterial({ map: texPlanks });
+                        if (x === 0 || x === 4 || z === 0 || z === 4) {
+                            setBlock(baseX + x, baseY + y, baseZ + z, 'wall', mat);
+                        }
+                    }
+                }
+            }
+            for (let x = -1; x <= 5; x++) {
+                for (let z = -1; z <= 5; z++) {
+                    setBlock(baseX + x, baseY + 4, baseZ + z, 'roof', new THREE.MeshLambertMaterial({ map: texPlanks }));
+                }
             }
         }
-        scene.add(worldGroup);
 
-        // Village Cabins
-        function createVillageCabin(x, z) {
-            const cabin = new THREE.Group();
-            const y = getVoxelBlockHeight(x, z);
-            const walls = new THREE.Mesh(new THREE.BoxGeometry(6, 4, 6), new THREE.MeshLambertMaterial({ map: texPlanks }));
-            walls.position.y = 2; cabin.add(walls);
-            const roof = new THREE.Mesh(new THREE.BoxGeometry(7, 1.2, 7), new THREE.MeshLambertMaterial({ map: texWood }));
-            roof.position.y = 4.6; cabin.add(roof);
-            const torch = new THREE.PointLight(0xf97316, 2, 15); torch.position.set(0, 2.5, 3.5); cabin.add(torch);
-            cabin.position.set(x, y, z);
-            scene.add(cabin);
+        // Spawn Village Houses
+        buildHouse(2, 4);
+        buildHouse(-8, 6);
+        buildHouse(8, -8);
+
+        // Terrain Blocks
+        for (let x = -40; x <= 40; x++) {
+            for (let z = -40; z <= 40; z++) {
+                const y = getTerrainY(x, z);
+                setBlock(x, y, z, 'grass', matGrass);
+                setBlock(x, y - 1, z, 'stone', new THREE.MeshLambertMaterial({ map: texStone }));
+            }
         }
-
-        createVillageCabin(0, -6);
-        createVillageCabin(140, -140);
-        createVillageCabin(-140, 120);
-
-        // Ravine Torches & Ore
-        const caveLight = new THREE.PointLight(0xf97316, 3, 25); caveLight.position.set(48, -2, -48); scene.add(caveLight);
-        const oreBlock = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshLambertMaterial({ map: texIronOre }));
-        oreBlock.position.set(48, -3, -48); scene.add(oreBlock);
 
         // Network Setup
         socket.on('init', (data) => {
-            myId = data.id; myData = data.players[myId];
+            myId = data.id; myData = data.players[myId]; serverMobs = data.mobs;
             socket.emit('joinGame', { characterClass: 'Warrior', subclass: 'Medium' });
             updateHUD();
         });
@@ -312,45 +516,89 @@
         socket.on('playerUpdated', (p) => { if (p.id === myId) { myData = p; updateHUD(); } });
         socket.on('feedback', (msg) => showToast(msg));
 
-        // Telegraph & Dummy
-        let activeTeleg = null;
-        socket.on('dummyTelegraph', ({ type, duration }) => {
-            activeTeleg = type;
-            const banner = document.getElementById('telegraphBanner');
-            banner.style.display = 'block';
-            if (type === 'white') { banner.innerText = "⚡ PALE BLUE: PARRY! [C]"; banner.style.background = "#0284c7"; }
-            else if (type === 'red') { banner.innerText = "💀 CRIMSON RED: TECHNIQUE! [E]"; banner.style.background = "#b91c1c"; }
-            else if (type === 'violet') { banner.innerText = "🌪️ PURPLE: DIVE OVER IT! [Jump+Move]"; banner.style.background = "#7e22ce"; }
-            setTimeout(() => { banner.style.display = 'none'; activeTeleg = null; }, duration);
-        });
-
         function updateHUD() {
             if (!myData) return;
             document.getElementById('hudName').innerText = `${myData.characterClass} (Lv.${myData.level})`;
             document.getElementById('hpFill').style.width = (myData.hp / myData.maxHp * 100) + '%';
             document.getElementById('staFill').style.width = myData.stamina + '%';
             document.getElementById('hudGold').innerText = `Carried: ${myData.carriedGold}g`;
-            const b = (myData.banks && myData.banks[currentVillage]) ? myData.banks[currentVillage] : 0;
-            const d = (myData.debts && myData.debts[currentVillage]) ? myData.debts[currentVillage] : 0;
-            document.getElementById('hudBank').innerText = `${currentVillage} Bank: ${b}g | Debt: ${d}g`;
-            document.getElementById('bankTitle').innerText = `${currentVillage} Village Bank`;
-        }
-
-        function bankAction(act, amt=0) {
-            socket.emit('bankAction', { village: currentVillage, action: act, amount: amt });
         }
 
         // ==========================================
-        // MINECRAFT JUMP, EYE HEIGHT & FALL DAMAGE
+        // CAMERA: PITCH (UP/DOWN) & YAW (LEFT/RIGHT)
+        // ==========================================
+        let yaw = 0;   // Left / Right rotation
+        let pitch = 0; // Up / Down rotation
+        const PITCH_LIMIT = Math.PI / 2.15; // Clamped to ~85 degrees
+
+        // PC Mouse Look (Pitch & Yaw)
+        document.body.addEventListener('click', () => {
+            if (inGame && !isPaused && !isMobile) {
+                document.body.requestPointerLock();
+            }
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (document.pointerLockElement === document.body && inGame && !isPaused) {
+                yaw -= e.movementX * mouseSensitivity;
+                const pSign = invertMouse ? -1 : 1;
+                pitch -= e.movementY * mouseSensitivity * pSign;
+                pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, pitch)); // Clamped!
+            }
+        });
+
+        // Mobile Touch Look (Pitch & Yaw via Right Screen Drag)
+        let lastTouchX = null, lastTouchY = null;
+        const touchArea = document.getElementById('touchLookArea');
+        touchArea.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 0) {
+                lastTouchX = e.touches[0].clientX;
+                lastTouchY = e.touches[0].clientY;
+            }
+        }, { passive: false });
+
+        touchArea.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (e.touches.length > 0 && lastTouchX !== null && lastTouchY !== null) {
+                const dx = e.touches[0].clientX - lastTouchX;
+                const dy = e.touches[0].clientY - lastTouchY;
+                yaw -= dx * 0.006;
+                pitch -= dy * 0.006;
+                pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, pitch));
+                lastTouchX = e.touches[0].clientX;
+                lastTouchY = e.touches[0].clientY;
+            }
+        }, { passive: false });
+
+        touchArea.addEventListener('touchend', () => {
+            lastTouchX = null; lastTouchY = null;
+        });
+
+        // ==========================================
+        // SOLID AABB COLLISION, JUMP & FALL DAMAGE
         // ==========================================
         let velocityY = 0;
         let isGrounded = true;
         let highestYInAir = 0;
         const EYE_HEIGHT = 1.62;
 
+        function checkAABBCollision(newX, newY, newZ) {
+            const minX = newX - 0.3, maxX = newX + 0.3;
+            const minY = newY - EYE_HEIGHT, maxY = newY + 0.18;
+            const minZ = newZ - 0.3, maxZ = newZ + 0.3;
+            for (let x = Math.floor(minX); x <= Math.floor(maxX); x++) {
+                for (let y = Math.floor(minY); y <= Math.floor(maxY); y++) {
+                    for (let z = Math.floor(minZ); z <= Math.floor(maxZ); z++) {
+                        if (hasBlock(x, y, z)) return true;
+                    }
+                }
+            }
+            return false;
+        }
+
         function triggerJump() {
-            if (isGrounded) {
-                velocityY = 0.22; // Jump clears 1.2 blocks. CANNOT clear 2 blocks!
+            if (isGrounded && inGame && !isPaused) {
+                velocityY = 0.22;
                 isGrounded = false;
                 highestYInAir = camera.position.y;
                 playTone(380, 'sine', 0.1);
@@ -358,35 +606,39 @@
         }
 
         function triggerParkour() {
+            if (!inGame || isPaused) return;
             if (!isGrounded) {
                 showToast("Diving over ground sweeps!");
                 playTone(320, 'triangle', 0.2);
-                camera.position.x -= Math.sin(camera.rotation.y) * 2;
-                camera.position.z -= Math.cos(camera.rotation.y) * 2;
+                camera.position.x -= Math.sin(yaw) * 2;
+                camera.position.z -= Math.cos(yaw) * 2;
             } else {
                 showToast("Back-dash!");
-                camera.position.x += Math.sin(camera.rotation.y) * 2.5;
-                camera.position.z += Math.cos(camera.rotation.y) * 2.5;
+                camera.position.x += Math.sin(yaw) * 2.5;
+                camera.position.z += Math.cos(yaw) * 2.5;
             }
         }
 
-        function triggerAttack() { playTone(450, 'square', 0.1); showToast("Attack swung!"); }
-        function triggerParry() { playTone(1800, 'sine', 0.15); showToast("Parry stance!"); }
-        function triggerTechnique() { playTone(2800, 'square', 0.25); showToast("Weapon Technique!"); }
+        function triggerAttack() { if (inGame && !isPaused) { playTone(450, 'square', 0.1); showToast("Attack swung!"); } }
+        function triggerParry() { if (inGame && !isPaused) { playTone(1800, 'sine', 0.15); showToast("Parry stance!"); } }
+        function triggerTechnique() { if (inGame && !isPaused) { playTone(2800, 'square', 0.25); showToast("Weapon Technique!"); } }
 
-        // Controls
-        if (!isMobile) {
-            document.body.addEventListener('click', () => { document.body.requestPointerLock(); });
-            document.addEventListener('mousemove', (e) => {
-                if (document.pointerLockElement === document.body) {
-                    const sens = parseFloat(document.getElementById('mouseSens').value) * 0.0006;
-                    camera.rotation.y -= e.movementX * sens;
-                }
-            });
-        }
-
+        // Keyboard Binds
         let keys = { w: false, s: false, a: false, d: false };
         window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (inGame) {
+                    if (isPaused) resumeGame();
+                    else {
+                        isPaused = true;
+                        document.exitPointerLock();
+                        document.getElementById('pauseMenu').style.display = 'flex';
+                    }
+                }
+                return;
+            }
+            if (!inGame || isPaused) return;
+
             const k = e.key.toLowerCase();
             if (k === 'w') keys.w = true;
             if (k === 's') keys.s = true;
@@ -406,7 +658,7 @@
             if (k === 'd') keys.d = false;
         });
 
-        // Touch Listeners
+        // Touch Buttons
         function bindTouch(id, k) {
             const el = document.getElementById(id);
             el.addEventListener('touchstart', (e) => { e.preventDefault(); keys[k] = true; });
@@ -419,96 +671,99 @@
         document.getElementById('btnTech').onclick = triggerTechnique;
         document.getElementById('btnDodge').onclick = triggerParkour;
 
+        // Minimap
+        const minimapCanvas = document.getElementById('minimapCanvas');
+        const miniCtx = minimapCanvas.getContext('2d');
+        function renderMinimap() {
+            miniCtx.fillStyle = '#1e293b';
+            miniCtx.fillRect(0, 0, 120, 120);
+            const px = camera.position.x, pz = camera.position.z, scale = 1.8;
+            for (let [key, type] of solidBlocks) {
+                const [bx, by, bz] = key.split(',').map(Number);
+                if (Math.hypot(bx - px, bz - pz) < 32) {
+                    const sx = 60 + (bx - px) * scale;
+                    const sy = 60 + (bz - pz) * scale;
+                    miniCtx.fillStyle = type === 'grass' ? '#4d7c0f' : '#64748b';
+                    miniCtx.fillRect(sx, sy, scale * 1.5, scale * 1.5);
+                }
+            }
+            miniCtx.save();
+            miniCtx.translate(60, 60);
+            miniCtx.rotate(-yaw);
+            miniCtx.fillStyle = '#facc15';
+            miniCtx.beginPath();
+            miniCtx.moveTo(0, -6); miniCtx.lineTo(5, 5); miniCtx.lineTo(0, 2); miniCtx.lineTo(-5, 5);
+            miniCtx.closePath(); miniCtx.fill();
+            miniCtx.restore();
+        }
+
         // ==========================================
-        // GAME LOOP: COLLISION, JUMP & FALL DAMAGE
+        // GAME PHYSICS & RENDER LOOP
         // ==========================================
-        camera.position.set(0, 3, 6);
+        camera.position.set(0, 4, 6);
 
         function animate() {
             requestAnimationFrame(animate);
 
-            // 1. Calculate intended movement
-            let dx = 0, dz = 0;
-            const speed = 0.15;
-            if (keys.w) { dx -= Math.sin(camera.rotation.y) * speed; dz -= Math.cos(camera.rotation.y) * speed; }
-            if (keys.s) { dx += Math.sin(camera.rotation.y) * speed * 0.7; dz += Math.cos(camera.rotation.y) * speed * 0.7; }
-            if (keys.a) { dx -= Math.cos(camera.rotation.y) * speed * 0.7; dz += Math.sin(camera.rotation.y) * speed * 0.7; }
-            if (keys.d) { dx += Math.cos(camera.rotation.y) * speed * 0.7; dz -= Math.sin(camera.rotation.y) * speed * 0.7; }
+            if (inGame && !isPaused) {
+                // Apply Camera Pitch (Up/Down) & Yaw (Left/Right)
+                camera.rotation.order = "YXZ";
+                camera.rotation.y = yaw;
+                camera.rotation.x = pitch;
 
-            // 2. Block Height Collision Detection
-            const targetX = camera.position.x + dx;
-            const targetZ = camera.position.z + dz;
-            const currentBlockH = getVoxelBlockHeight(camera.position.x, camera.position.z);
-            const targetBlockH = getVoxelBlockHeight(targetX, targetZ);
-            const stepDiff = targetBlockH - currentBlockH;
+                // Horizontal Movement based on Yaw only
+                let dx = 0, dz = 0;
+                const speed = 0.15;
+                if (keys.w) { dx -= Math.sin(yaw) * speed; dz -= Math.cos(yaw) * speed; }
+                if (keys.s) { dx += Math.sin(yaw) * speed * 0.7; dz += Math.cos(yaw) * speed * 0.7; }
+                if (keys.a) { dx -= Math.cos(yaw) * speed * 0.7; dz += Math.sin(yaw) * speed * 0.7; }
+                if (keys.d) { dx += Math.cos(yaw) * speed * 0.7; dz -= Math.sin(yaw) * speed * 0.7; }
 
-            // CANNOT go up more than 1 block! Cliffs of 2+ blocks are solid walls!
-            if (stepDiff <= 1.0) {
-                if (stepDiff > 0.4) {
-                    // 1-Block Step
-                    if (autoJumpEnabled) {
-                        camera.position.x = targetX;
-                        camera.position.z = targetZ;
-                    } else if (!isGrounded) {
-                        camera.position.x = targetX;
-                        camera.position.z = targetZ;
+                // X-Axis Collision
+                if (dx !== 0) {
+                    if (!checkAABBCollision(camera.position.x + dx, camera.position.y, camera.position.z)) {
+                        camera.position.x += dx;
+                    } else if (autoJumpEnabled && isGrounded && !checkAABBCollision(camera.position.x + dx, camera.position.y + 1.05, camera.position.z)) {
+                        camera.position.y += 1.05; camera.position.x += dx; // Step up 1 block!
                     }
+                }
+
+                // Z-Axis Collision
+                if (dz !== 0) {
+                    if (!checkAABBCollision(camera.position.x, camera.position.y, camera.position.z + dz)) {
+                        camera.position.z += dz;
+                    } else if (autoJumpEnabled && isGrounded && !checkAABBCollision(camera.position.x, camera.position.y + 1.05, camera.position.z + dz)) {
+                        camera.position.y += 1.05; camera.position.z += dz; // Step up 1 block!
+                    }
+                }
+
+                // Gravity & Landing Physics
+                camera.position.y += velocityY;
+                velocityY -= 0.014;
+
+                if (!isGrounded && camera.position.y > highestYInAir) {
+                    highestYInAir = camera.position.y;
+                }
+
+                if (checkAABBCollision(camera.position.x, camera.position.y - 0.05, camera.position.z)) {
+                    if (!isGrounded) {
+                        const fallDist = highestYInAir - camera.position.y;
+                        if (fallDist > 3.2) {
+                            const fallDmg = Math.floor((fallDist - 3) * 14);
+                            socket.emit('takeDamage', { amount: fallDmg, reason: `Fall (${Math.floor(fallDist)} blocks)` });
+                            playTone(160, 'sawtooth', 0.2);
+                            const flash = document.getElementById('damageFlash');
+                            flash.style.display = 'block';
+                            setTimeout(() => { flash.style.display = 'none'; }, 200);
+                        }
+                    }
+                    velocityY = 0;
+                    isGrounded = true;
                 } else {
-                    // Flat or downhill: move freely
-                    camera.position.x = targetX;
-                    camera.position.z = targetZ;
+                    isGrounded = false;
                 }
-            }
 
-            // 3. Gravity & Vertical Physics
-            camera.position.y += velocityY;
-            velocityY -= 0.014; // Gravity
-
-            if (!isGrounded && camera.position.y > highestYInAir) {
-                highestYInAir = camera.position.y;
-            }
-
-            const groundY = getVoxelBlockHeight(camera.position.x, camera.position.z) + EYE_HEIGHT;
-            if (camera.position.y <= groundY) {
-                // Landing Check: Fall Damage
-                if (!isGrounded) {
-                    const fallBlocks = Math.floor(highestYInAir - groundY);
-                    if (fallBlocks > 3) {
-                        const fallDmg = (fallBlocks - 3) * 12;
-                        socket.emit('takeDamage', { amount: fallDmg, reason: `Fall Damage (${fallBlocks} blocks)` });
-                        playTone(150, 'sawtooth', 0.25);
-                        const flash = document.getElementById('damageFlash');
-                        flash.style.display = 'block';
-                        setTimeout(() => { flash.style.display = 'none'; }, 200);
-                    }
-                }
-                camera.position.y = groundY;
-                velocityY = 0;
-                isGrounded = true;
-            } else {
-                isGrounded = false;
-            }
-
-            // 4. Village Region Detection
-            const dRiv = Math.hypot(camera.position.x - 0, camera.position.z - 0);
-            const dFrost = Math.hypot(camera.position.x - 140, camera.position.z + 140);
-            const dDusk = Math.hypot(camera.position.x + 140, camera.position.z - 120);
-
-            let newVillage = "Wilderness";
-            if (dRiv < 35) newVillage = "Riverwood";
-            else if (dFrost < 45) newVillage = "Frostcrag";
-            else if (dDusk < 45) newVillage = "Duskwood";
-
-            if (newVillage !== currentVillage) {
-                currentVillage = newVillage;
-                document.getElementById('hudLocation').innerText = `Region: ${currentVillage}`;
-                updateHUD();
-                showToast(`Entered ${currentVillage}!`);
-            }
-
-            // 5. Network Sync
-            if (dx !== 0 || dz !== 0 || !isGrounded) {
-                socket.emit('move', { x: camera.position.x, y: camera.position.y, z: camera.position.z, rotation: camera.rotation.y });
+                renderMinimap();
             }
 
             renderer.render(scene, camera);
